@@ -7,7 +7,7 @@ import re
 import torch
 from transformers import StoppingCriteria
 from llava.constants import IMAGE_TOKEN_INDEX
-
+from pdb import set_trace as pds
 
 def resize_and_center_crop(image, shortest_edge_length):
     # Calculate new dimensions and resize
@@ -272,8 +272,8 @@ def process_anyres_image(image, processor, grid_pinpoints):
         possible_resolutions = grid_pinpoints
     else:
         possible_resolutions = ast.literal_eval(grid_pinpoints)
-    best_resolution = select_best_resolution(image.size, possible_resolutions)
-    image_padded = resize_and_pad_image(image, best_resolution)
+    best_resolution = select_best_resolution(image.size, possible_resolutions) # select best candidate
+    image_padded = resize_and_pad_image(image, best_resolution)  # resize image to best possible candidate and pad with 0 if not perfect fit
 
     patches = divide_to_patches(image_padded, processor.crop_size["height"])
 
@@ -288,8 +288,9 @@ def process_anyres_image(image, processor, grid_pinpoints):
     # image_padded_square = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
     # image_original_resize = image_padded_square.resize((processor.size['shortest_edge'], processor.size['shortest_edge']))
 
-    image_patches = [image_original_resize] + patches
+    image_patches = [image_original_resize] + patches # [3 * 3 + 1]
     image_patches = [processor.preprocess(image_patch, return_tensors="pt")["pixel_values"][0] for image_patch in image_patches]
+    # image_patches = [torch.size(3,384,384) * 10]
     return torch.stack(image_patches, dim=0)
 
 

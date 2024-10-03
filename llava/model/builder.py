@@ -22,6 +22,7 @@ import torch
 from llava.model import *
 from llava.constants import DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 from llava.utils import rank0_print
+from pdb import set_trace as pds
 
 
 def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="auto", attn_implementation="flash_attention_2", customized_config=None, overwrite_config=None, **kwargs):
@@ -211,7 +212,18 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                         model = LlavaQwenMoeForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, config=llava_cfg, **kwargs)
                     else:
                         model = LlavaQwenMoeForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, **kwargs)
-
+                
+                elif "adaptive" in model_name.lower():
+                    from llava.model.language_model.llava_qwen import LlavaQwenConfig
+                    if overwrite_config is not None:
+                        llava_cfg = LlavaQwenConfig.from_pretrained(model_path)
+                        rank0_print(f"Overwriting config with {overwrite_config}")
+                        for k, v in overwrite_config.items():
+                            setattr(llava_cfg, k, v)
+                        model = AdaptiveLlavaQwenForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, config=llava_cfg, **kwargs)
+                    else:
+                        model = AdaptiveLlavaQwenForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, **kwargs)
+                
                 else:
                     from llava.model.language_model.llava_qwen import LlavaQwenConfig
                     if overwrite_config is not None:
