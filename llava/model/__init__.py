@@ -20,4 +20,4 @@ from .language_model.llava_mistral import LlavaMistralForCausalLM, LlavaMistralC
 from .language_model.llava_mixtral import LlavaMixtralForCausalLM, LlavaMixtralConfig
 from .language_model.llava_gemma import LlavaGemmaForCausalLM, LlavaGemmaConfig
 from .language_model.llava_qwen_moe import LlavaQwenMoeForCausalLM, LlavaQwenMoeConfig
-from .language_model.adaptive_llava_qwen import AdaptiveLlavaQwenForCausalLM
+from .adaptive_model.adaptive_llava_qwen import AdaptiveLlavaQwenForCausalLM
