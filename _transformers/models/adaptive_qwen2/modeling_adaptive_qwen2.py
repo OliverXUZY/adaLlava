@@ -781,6 +781,8 @@ class AdaptiveQwen2DecoderLayer(nn.Module):
                 output_attentions=output_attentions,
                 use_cache=use_cache,
             )
+
+            # residual.shape, hidden_states.shape  [1, 6578, 896] drop_mask: [1,1,1]
             residual = residual + hidden_states * drop_mask
 
             # Fully Connected
@@ -1031,14 +1033,13 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
                 use_cache = False
 
         past_key_values_length = 0
-        pds()
 
         if use_cache:
             use_legacy_cache = not isinstance(past_key_values, Cache)
             if use_legacy_cache:
                 past_key_values = DynamicCacheWithMask.from_legacy_cache(past_key_values)
             past_key_values_length = past_key_values.get_usable_length(seq_length)
-        pds()
+        # pds()
 
         if position_ids is None:
             device = input_ids.device if input_ids is not None else inputs_embeds.device

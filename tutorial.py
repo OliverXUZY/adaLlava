@@ -16,8 +16,8 @@ import warnings
 from pdb import set_trace as pds
 warnings.filterwarnings("ignore")
 pretrained = "lmms-lab/llava-onevision-qwen2-0.5b-si"
-# model_name = "llava_qwen_adaptive"
-model_name = "llava_qwen"
+model_name = "llava_qwen_adaptive"
+# model_name = "llava_qwen"
 device = "cuda"
 device_map = "auto"
 
@@ -51,7 +51,8 @@ def count_parameters(model):
 def main():
     tokenizer, model, image_processor, max_length = load_pretrained_model(pretrained, None, model_name, device_map=device_map, attn_implementation = "eager")  # Add any other thing you want to pass in llava_model_args
     # pds()
-    model.eval()
+    # model.eval()
+    model.train()
     url = "https://github.com/haotian-liu/LLaVA/blob/1a91fc274d7c35a9b50b3cb29c4247ae5837ce39/images/llava_v1_5_radar.jpg?raw=true"
     image = Image.open(requests.get(url, stream=True).raw)
 

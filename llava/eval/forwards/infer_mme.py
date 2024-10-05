@@ -102,7 +102,8 @@ def main(args):
     # Model
     # disable_torch_init()
     model_name_or_path = os.path.expanduser(args.model_path)
-    model_name = "llava_qwen"
+    # model_name = "llava_qwen"
+    model_name = "llava_qwen_adaptive"
     # tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, None, model_name)
     device_map = "auto"
     tokenizer, model, image_processor, max_length = load_pretrained_model(model_name_or_path, None, model_name, device_map=device_map)  # Add any other thing you want to pass in llava_model_args
@@ -160,6 +161,15 @@ def main(args):
 
     losses = []
 
+    # drop_mask = torch.randint(0, 2, (24, 1)).long().to(device)
+    # drop_mask[:] = 1
+    # pds()
+
+    branch_idx = args.branch_idx
+    all_masks = np.load(args.mask_array)
+    drop_mask = torch.from_numpy(all_masks[branch_idx]).long().to(device)
+    
+
     for idx, batch in tqdm(enumerate(eval_loader), total=len(eval_loader), desc="Evaluating"):
         # if idx > 10:
         #     break
@@ -168,8 +178,9 @@ def main(args):
             for k, v in batch.items()}
         image_tensor = batch['images']
         batch['images'] = [_image.to(dtype=torch.float16, device=device) for _image in image_tensor]
+
+        batch['drop_mask'] = drop_mask
         out = model(**batch)
-        # pds()
         loss = out.loss  # Assuming the loss is stored in out.loss
 
         # Append the loss value to the list
@@ -188,10 +199,8 @@ def main(args):
     ensure_path(save_path)
 
     # Assuming losses_array is your numpy array of shape (336825,) and dtype float32
-    np.save(f'{save_path}/losses.npy', losses_array)
-
-
-    print(f"save to {save_path}/losses.npy, using time {time_str(timer.end())}")
+    np.save(f'{save_path}/branch{branch_idx}_losses.npy', losses_array)
+    print(f"save to {save_path}/subset_branch{branch_idx}_losses.npy, using time {time_str(timer.end())}")
 
 
 
@@ -202,11 +211,13 @@ def parge_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, default="lmms-lab/llava-onevision-qwen2-0.5b-si")
     parser.add_argument("--image-folder", type=str, default="./data/MME/images")
-    parser.add_argument("--question-file", type=str, default="data/MME/json_qa/qa_MME_choice.json")
+    parser.add_argument("--question-file", type=str, default="data/MME/json_qa/subset_qa_MME_choice.json")
     parser.add_argument("--answers-file", type=str, default="answers/answer.jsonl")
     parser.add_argument("--conv-mode", type=str, default="qwen_1_5")
 
-    parser.add_argument("--save-path", type=str, default="data/MME/losses")
+    parser.add_argument("--mask-array", type=str, default="./mask_variations_5.npy")
+    parser.add_argument("--save-path", type=str, default="data/MME/ada_losses/subset/mask_5")
+    parser.add_argument("--branch-idx", type=int, default=0)
     args = parser.parse_args()
 
     return args

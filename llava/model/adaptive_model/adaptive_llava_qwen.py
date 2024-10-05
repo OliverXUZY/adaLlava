@@ -158,6 +158,7 @@ class AdaptiveLlavaQwenForCausalLM(AdaptiveQwen2ForCausalLM, LlavaMetaForCausalL
         num_hidden_layers = getattr(self.config, "num_hidden_layers")
         drop_mask = torch.randint(0, 2, (num_hidden_layers, inputs_embeds.size(0))).long().to(inputs_embeds.device)
         drop_mask[:] = 1
+        # pds()
 
         return super().generate(position_ids=position_ids, attention_mask=attention_mask, inputs_embeds=inputs_embeds, drop_mask=drop_mask, **kwargs)
 
