@@ -42,8 +42,8 @@ print(f"Shape of mask_variations: {stacked_variations.shape}")
 
 pds()
 # Save the numpy array
-np.save('mask_variations.npy', stacked_variations)
-print("Mask variations saved as 'mask_variations.npy'")
+np.save(f'mask_variations_{K}.npy', stacked_variations)
+print(f"Mask variations saved as 'mask_variations_{K}.npy'")
 
 
 

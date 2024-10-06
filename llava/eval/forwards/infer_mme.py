@@ -211,12 +211,21 @@ def parge_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, default="lmms-lab/llava-onevision-qwen2-0.5b-si")
     parser.add_argument("--image-folder", type=str, default="./data/MME/images")
-    parser.add_argument("--question-file", type=str, default="data/MME/json_qa/subset_qa_MME_choice.json")
+    parser.add_argument("--question-file", type=str, default="data/MME/json_qa/qa_MME_choice.json", 
+                        choices=[
+                            "data/MME/json_qa/subset_qa_MME_choice.json", 
+                            "data/MME/json_qa/qa_MME_choice.json", 
+
+                        ])
     parser.add_argument("--answers-file", type=str, default="answers/answer.jsonl")
     parser.add_argument("--conv-mode", type=str, default="qwen_1_5")
 
     parser.add_argument("--mask-array", type=str, default="./mask_variations_5.npy")
-    parser.add_argument("--save-path", type=str, default="data/MME/ada_losses/subset/mask_5")
+    parser.add_argument("--save-path", type=str, default="data/MME/ada_losses/fullset/mask_5",
+                        choices = [
+                            "data/MME/ada_losses/subset/mask_5",
+                            "data/MME/ada_losses/fullset/mask_5"
+                        ])
     parser.add_argument("--branch-idx", type=int, default=0)
     args = parser.parse_args()
 
