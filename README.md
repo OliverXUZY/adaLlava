@@ -24,6 +24,6 @@ where `branch-idx` range from 0-101.
 
 batched operation
 ```
-bash run_eval.sh
+bash scripts/eval/forwards/eval_branch.sh
 ```
 save loss to `/home/ubuntu/projects/vqaData/data/MME/ada_losses`.
