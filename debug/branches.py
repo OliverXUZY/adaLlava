@@ -31,7 +31,7 @@ def generate_mask_variations(K: int) -> List[torch.Tensor]:
     return variations
 
 # Usage
-K = 5  # Number of subsamples per group
+K = 30  # Number of subsamples per group
 mask_variations = generate_mask_variations(K)
 # Stack all variations into a single numpy array
 stacked_variations = np.stack(mask_variations)
