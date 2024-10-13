@@ -224,7 +224,8 @@ def parge_args():
     parser.add_argument("--save-path", type=str, default="data/MME/ada_losses/fullset/mask_5",
                         choices = [
                             "data/MME/ada_losses/subset/mask_5",
-                            "data/MME/ada_losses/fullset/mask_5"
+                            "data/MME/ada_losses/fullset/mask_5",
+                            "data/MME/ada_losses/fullset/mask_30",
                         ])
     parser.add_argument("--branch-idx", type=int, default=0)
     args = parser.parse_args()
