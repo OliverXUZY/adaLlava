@@ -69,6 +69,8 @@ def eval_model(args):
             raise NotImplementedError
 
 
+        ### to reproduce lmm setting
+        qs = qs.replace(" Please answer yes or no.","\nAnswer the question using a single word or phrase.")
 
 
         question = qs
@@ -79,6 +81,7 @@ def eval_model(args):
 
         input_ids = tokenizer_image_token(prompt_question, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt").unsqueeze(0).to(device)
         image_sizes = [image.size]
+        # pds()
 
 
         cont = model.generate(

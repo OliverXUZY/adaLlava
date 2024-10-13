@@ -1,5 +1,13 @@
 # adaLlava
 
+#### Naive inference
+Inference using autoregressive generation.
+
+```
+python -m llava.eval.generation.infer_mme
+```
+replace post prompt with lmm setting, but has higher score. Leave it for now.
+
 #### Inference baseline for different branches
 ##### generate different branches
 ```
@@ -14,3 +22,8 @@ python -m llava.eval.forwards.infer_mme --branch-idx $branch
 
 where `branch-idx` range from 0-101.
 
+batched operation
+```
+bash run_eval.sh
+```
+save loss to `/home/ubuntu/projects/vqaData/data/MME/ada_losses`.
