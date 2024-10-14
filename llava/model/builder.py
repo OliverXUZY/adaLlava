@@ -25,7 +25,17 @@ from llava.utils import rank0_print
 from pdb import set_trace as pds
 
 
-def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="auto", attn_implementation="flash_attention_2", customized_config=None, overwrite_config=None, **kwargs):
+def load_pretrained_model(
+        model_path, 
+        model_base, 
+        model_name, 
+        load_8bit=False, 
+        load_4bit=False, 
+        device_map="auto", 
+        attn_implementation="flash_attention_2", 
+        customized_config=None, 
+        overwrite_config=None, 
+        **kwargs):
     kwargs["device_map"] = device_map
 
     if load_8bit:
@@ -220,9 +230,18 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                         rank0_print(f"Overwriting config with {overwrite_config}")
                         for k, v in overwrite_config.items():
                             setattr(llava_cfg, k, v)
-                        model = AdaptiveLlavaQwenForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, config=llava_cfg, **kwargs)
+                        model = AdaptiveLlavaQwenForCausalLM.from_pretrained(
+                            model_path, 
+                            low_cpu_mem_usage=True, 
+                            attn_implementation=attn_implementation, 
+                            config=llava_cfg, 
+                            **kwargs)
                     else:
-                        model = AdaptiveLlavaQwenForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, **kwargs)
+                        model = AdaptiveLlavaQwenForCausalLM.from_pretrained(
+                            model_path, 
+                            low_cpu_mem_usage=True, 
+                            attn_implementation=attn_implementation,
+                            **kwargs)
                 
                 else:
                     from llava.model.language_model.llava_qwen import LlavaQwenConfig

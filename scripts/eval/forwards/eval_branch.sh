@@ -3,6 +3,8 @@
 # Total number of branch indices
 # [5, 102]
 # [30, 584]
+
+START_BRANCH=383
 TOTAL_BRANCHES=584
 
 # Number of available GPUs
@@ -12,6 +14,7 @@ NUM_GPUS=8
 run_command() {
     local gpu=$1
     local branch=$2
+    echo "Running branch $branch on GPU $gpu"
     CUDA_VISIBLE_DEVICES=$gpu python -m llava.eval.forwards.infer_mme \
             --branch-idx $branch \
             --mask-array ./mask_variations_30.npy \
@@ -19,15 +22,15 @@ run_command() {
 }
 
 # Loop through all branch indices
-for ((branch=0; branch<TOTAL_BRANCHES; branch++)); do
+for ((branch=START_BRANCH; branch<TOTAL_BRANCHES; branch++)); do
     # Calculate which GPU to use
-    gpu=$((branch % NUM_GPUS))
+    gpu=$(((branch - START_BRANCH) % NUM_GPUS))
     
     # Run the command in the background
     run_command $gpu $branch &
     
     # If we've started tasks on all GPUs, wait for them to finish
-    if ((branch % NUM_GPUS == NUM_GPUS - 1)) || ((branch == TOTAL_BRANCHES - 1)); then
+    if (((branch - START_BRANCH) % NUM_GPUS == NUM_GPUS - 1)) || ((branch == TOTAL_BRANCHES - 1)); then
         wait
     fi
 done
