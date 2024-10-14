@@ -21,7 +21,7 @@
 import inspect
 import math
 import warnings
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Callable
 
 import torch
 import torch.nn.functional as F
@@ -765,6 +765,13 @@ class AdaptiveQwen2DecoderLayer(nn.Module):
             past_key_value (`Tuple(torch.FloatTensor)`, *optional*): cached past key and value projection states
         """
 
+        # hidden_states = inputs_embeds.shape [bs, seq_len, dim] ==> torch.Size([1, 775, 896])
+        # _drop_mask.shape [bs] ==> torch.Size([1])
+
+        ## if no drop_mask provided, just return to normal mode
+        if drop_mask is None:
+            drop_mask = torch.tensor([1]).long().to(hidden_states.device)
+
         # A note on drop_mask: here we only drop attention layer while keeping the mlp.
         if self.training:
             drop_mask = drop_mask.unsqueeze(-1).unsqueeze(-1) # broadcast drop_mask
@@ -789,7 +796,7 @@ class AdaptiveQwen2DecoderLayer(nn.Module):
             hidden_states = residual
             hidden_states = self.post_attention_layernorm(hidden_states)
             hidden_states = self.mlp(hidden_states)
-            hidden_states = residual + hidden_states
+            hidden_states = residual + hidden_states * drop_mask
 
             outputs = (hidden_states,)
 
@@ -834,9 +841,12 @@ class AdaptiveQwen2DecoderLayer(nn.Module):
 
             # Fully Connected
             hidden_states = residual
-            hidden_states = self.post_attention_layernorm(hidden_states)
+            hidden_states = self.post_attention_layernorm(hidden_states[drop_mask])
             hidden_states = self.mlp(hidden_states)
-            hidden_states = residual + hidden_states
+            # hidden_states = residual + hidden_states
+            residual[drop_mask] = residual[drop_mask] + hidden_states
+            hidden_states = residual
+
 
             outputs = (hidden_states,)
 
