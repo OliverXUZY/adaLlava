@@ -13,7 +13,7 @@
 #    limitations under the License.
 
 
-from typing import List, Optional, Tuple, Union, Dict
+from typing import List, Optional, Tuple, Union, Dict, Callable
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss
@@ -29,6 +29,7 @@ from llava.model.language_model.llava_qwen import LlavaQwenConfig
 from llava.model.llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
 from transformers import Qwen2Config
 from _transformers.models.adaptive_qwen2.modeling_adaptive_qwen2 import AdaptiveQwen2Model, AdaptiveQwen2ForCausalLM
+from llava.model.adaptive_model.ada_scheduler import ada_Scheduler, ada_SchedulerCfg
 
 # from .qwen.modeling_qwen import QWenLMHeadModel, QWenModel
 # from .qwen.configuration_qwen import QWenConfig
@@ -40,6 +41,12 @@ class AdaptiveLlavaQwenModel(LlavaMetaModel, AdaptiveQwen2Model):
     def __init__(self, config: Qwen2Config):
         super(AdaptiveLlavaQwenModel, self).__init__(config)
 
+        if hasattr(config, "ada_schdeuler_cfg"):
+            ada_scheduler_config = ada_SchedulerCfg(**getattr(config, "ada_schdeuler_cfg"))
+            self.ada_scheduler = ada_Scheduler(ada_scheduler_config)
+            self.ada_scheduler_forward = self.ada_scheduler.forward
+        else:
+            self.ada_scheduler = self.ada_scheduler_forward = None
 
 class AdaptiveLlavaQwenForCausalLM(AdaptiveQwen2ForCausalLM, LlavaMetaForCausalLM):
     config_class = LlavaQwenConfig
@@ -57,6 +64,9 @@ class AdaptiveLlavaQwenForCausalLM(AdaptiveQwen2ForCausalLM, LlavaMetaForCausalL
 
     def get_model(self):
         return self.model
+
+    def get_ada_scheduler(self):
+        return self.get_model().ada_scheduler
 
     def forward(
         self,
@@ -76,7 +86,21 @@ class AdaptiveLlavaQwenForCausalLM(AdaptiveQwen2ForCausalLM, LlavaMetaForCausalL
         modalities: Optional[List[str]] = ["image"],
         dpo_forward: Optional[bool] = False,
         cache_position=None,
+
+        latency: Optional[torch.Tensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
+        """
+        input_ids: tensor [bs, seq_len]   torch.Size([1, 39])
+        labels:    tensor [bs, seq_len]   torch.Size([1, 39])
+        attention_mask:  tensor [bs, seq_len]   torch.Size([1, 39])
+        image_sizes: <class 'list'> |  len bs, ==> each item [416, 114]
+        modalities: <class 'list'> | len bs, ==> each item `image`
+        image: <class 'list'> | len bs, each item [c,h,w] ==> torch.Size([3, 384, 384])
+
+
+        drop_mask (torch.int64 tensor, (num_block, bs)): masks for residual connections.
+        latency: (torch.float32, (bs, )).  ==> torch.Size([24, 1])
+        """
 
         if inputs_embeds is None:
             (
@@ -127,6 +151,9 @@ class AdaptiveLlavaQwenForCausalLM(AdaptiveQwen2ForCausalLM, LlavaMetaForCausalL
                 output_attentions=output_attentions,
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
+
+                latency = latency,
+                ada_scheduler_forward = self.get_model().ada_scheduler_forward,
             )
 
     @torch.no_grad()

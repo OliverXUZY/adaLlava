@@ -1002,6 +1002,30 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
 
     def set_input_embeddings(self, value):
         self.embed_tokens = value
+    
+    def _gumbel_sigmoid(self, logits, tau=1, hard=False, eps=1e-10):
+        """
+        logits: tensor [bs, n_knobs]
+        """
+        # Sample Gumbel noise
+        gumbels1 = -torch.empty_like(logits).exponential_().log()  # Sample from Gumbel(0, 1)
+        gumbels2 = -torch.empty_like(logits).exponential_().log()  # Sample from Gumbel(0, 1)
+        # print(gumbels.shape)
+        # assert False
+        # Add Gumbel noise to logits
+        noisy_logits = (logits + gumbels1 - gumbels2) / tau  # Apply temperature
+        # Apply sigmoid to get probabilities in (0, 1)
+        y_soft = torch.sigmoid(noisy_logits)
+        
+        if hard:
+            # Hard thresholding to 0 or 1, but in a way that gradients can flow through y_soft
+            y_hard = (y_soft > 0.5).float()
+            # Use straight-through estimator to make the operation differentiable
+            y = y_hard - y_soft.detach() + y_soft
+        else:
+            y = y_soft
+        
+        return y
 
     @add_start_docstrings_to_model_forward(QWEN2_INPUTS_DOCSTRING)
     def forward(
@@ -1016,7 +1040,18 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+
+        latency: Optional[torch.Tensor] = None,
+        ada_scheduler_forward: Callable = None,
+
     ) -> Union[Tuple, BaseModelOutputWithPast]:
+        """
+        drop_mask (torch.int64 tensor, (num_block, bs)): masks for residual connections.
+        latency: (torch.float32, (bs, )).
+        ada_scheduler_forward: Callable
+
+        either input with predefined drop_mask, or a latency requirement
+        """
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
@@ -1102,41 +1137,102 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
         all_self_attns = () if output_attentions else None
         next_decoder_cache = None
 
-        for i, (decoder_layer, _drop_mask) in enumerate(zip(self.layers, drop_mask)):
-            if output_hidden_states:
-                all_hidden_states += (hidden_states,)
+        ### decoder layer forward
+        use_ada_scheduler = False
+        if latency is not None:
+            use_ada_scheduler = True
 
-            if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    decoder_layer.__call__,
-                    hidden_states,
-                    attention_mask,
-                    position_ids,
-                    past_key_values,
-                    _drop_mask,
-                    output_attentions,
-                    use_cache,
-                )
-            else:
-                layer_outputs = decoder_layer(
-                    hidden_states,
-                    attention_mask=attention_mask,
-                    position_ids=position_ids,
-                    past_key_value=past_key_values,
-                    drop_mask=_drop_mask,
-                    output_attentions=output_attentions,
-                    use_cache=use_cache,
-                )
+        # hidden_states = inputs_embeds.shape [bs, seq_len, dim] ==> torch.Size([1, 775, 896])
+        # _drop_mask.shape [bs] ==> torch.Size([1])
+        if not use_ada_scheduler:
+            for block_idx, decoder_layer in enumerate(self.layers):
+                _drop_mask = drop_mask[block_idx] if drop_mask is not None else None
 
-            hidden_states = layer_outputs[0]
+                if output_hidden_states:
+                    all_hidden_states += (hidden_states,)
+                if self.gradient_checkpointing and self.training:
+                    layer_outputs = self._gradient_checkpointing_func(
+                        decoder_layer.__call__,
+                        hidden_states,
+                        attention_mask,
+                        position_ids,
+                        past_key_values,
+                        _drop_mask,
+                        output_attentions,
+                        use_cache,
+                    )
+                else:
+                    layer_outputs = decoder_layer(
+                        hidden_states,
+                        attention_mask=attention_mask,
+                        position_ids=position_ids,
+                        past_key_value=past_key_values,
+                        drop_mask=_drop_mask,
+                        output_attentions=output_attentions,
+                        use_cache=use_cache,
+                    )
 
-            if use_cache:
-                next_decoder_cache = layer_outputs[2 if output_attentions else 1]
+                hidden_states = layer_outputs[0]
 
-            if output_attentions:
-                all_self_attns += (layer_outputs[1],)
+                if use_cache:
+                    next_decoder_cache = layer_outputs[2 if output_attentions else 1]
+
+                if output_attentions:
+                    all_self_attns += (layer_outputs[1],)
+        else:
+            mask_idx = 0
+            for block_idx, decoder_layer in enumerate(self.layers):
+                ## right now always keep first 3 blocks
+                if block_idx <= 2:
+                    _drop_mask = None
+                    if block_idx == 2:
+                        ada_sche_hidden = hidden_states.clone()  # [bs, seq_len, D]
+                        logits = ada_scheduler_forward(ada_sche_hidden, latency)
+                        scheduled_drop_mask = self._gumbel_sigmoid(logits, hard = True)
+                        # pds()
+                        scheduled_drop_mask = scheduled_drop_mask.permute(1,0)
+                        # pds()
+
+                else:
+                    _drop_mask = scheduled_drop_mask[mask_idx]
+                    mask_idx += 1
+                    # print(f"block_idx: {block_idx} | mask_idx: {mask_idx}")
+
+                if output_hidden_states:
+                    all_hidden_states += (hidden_states,)
+                if self.gradient_checkpointing and self.training:
+                    layer_outputs = self._gradient_checkpointing_func(
+                        decoder_layer.__call__,
+                        hidden_states,
+                        attention_mask,
+                        position_ids,
+                        past_key_values,
+                        _drop_mask,
+                        output_attentions,
+                        use_cache,
+                    )
+                else:
+                    layer_outputs = decoder_layer(
+                        hidden_states,
+                        attention_mask=attention_mask,
+                        position_ids=position_ids,
+                        past_key_value=past_key_values,
+                        drop_mask=_drop_mask,
+                        output_attentions=output_attentions,
+                        use_cache=use_cache,
+                    )
+
+                hidden_states = layer_outputs[0]
+
+                if use_cache:
+                    next_decoder_cache = layer_outputs[2 if output_attentions else 1]
+
+                if output_attentions:
+                    all_self_attns += (layer_outputs[1],)
 
         hidden_states = self.norm(hidden_states)
+
+        # pds()
 
         # add hidden states from the last decoder layer
         if output_hidden_states:
@@ -1201,6 +1297,9 @@ class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+
+        latency: Optional[torch.Tensor] = None,
+        ada_scheduler_forward: Callable = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -1209,6 +1308,10 @@ class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
                 config.vocab_size]` or -100 (see `input_ids` docstring). Tokens with indices set to `-100` are ignored
                 (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`.
 
+            drop_mask (torch.int64 tensor, (num_block, bs)): masks for residual connections.
+            latency: (torch.float32, (bs, )).
+            ada_scheduler_forward: Callable
+        
         Returns:
 
         Example:
@@ -1245,6 +1348,9 @@ class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+
+            latency = latency,
+            ada_scheduler_forward = ada_scheduler_forward,
         )
 
         hidden_states = outputs[0]
