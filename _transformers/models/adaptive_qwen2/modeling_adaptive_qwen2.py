@@ -770,11 +770,13 @@ class AdaptiveQwen2DecoderLayer(nn.Module):
 
         ## if no drop_mask provided, just return to normal mode
         if drop_mask is None:
-            drop_mask = torch.tensor([1]).long().to(hidden_states.device)
+            # drop_mask = torch.tensor([1]).long().to(hidden_states.device) # only bs as 1
+            drop_mask = torch.ones(hidden_states.shape[0]).long().to(hidden_states.device) # bs as hidden_states.shape[0]
+
 
         # A note on drop_mask: here we only drop attention layer while keeping the mlp.
         if self.training:
-            drop_mask = drop_mask.unsqueeze(-1).unsqueeze(-1) # broadcast drop_mask
+            drop_mask = drop_mask.unsqueeze(-1).unsqueeze(-1) # broadcast drop_mask [bs] --> [bs, seq_len, D]
             residual = hidden_states
 
             hidden_states = self.input_layernorm(hidden_states)
@@ -1189,8 +1191,7 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
                         ada_sche_hidden = hidden_states.clone()  # [bs, seq_len, D]
                         logits = ada_scheduler_forward(ada_sche_hidden, latency)
                         scheduled_drop_mask = self._gumbel_sigmoid(logits, hard = True)
-                        # pds()
-                        scheduled_drop_mask = scheduled_drop_mask.permute(1,0)
+                        scheduled_drop_mask = scheduled_drop_mask.permute(1,0).half()
                         # pds()
 
                 else:
@@ -1232,7 +1233,6 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
 
         hidden_states = self.norm(hidden_states)
 
-        # pds()
 
         # add hidden states from the last decoder layer
         if output_hidden_states:

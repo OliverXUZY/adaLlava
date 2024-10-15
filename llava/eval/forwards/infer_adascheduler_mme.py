@@ -149,19 +149,21 @@ def main(args):
                 data_args=data_args)
     
     # eg = eval_dataset[0]
+    # pprint(eg)
     
     # eg1 = eval_dataset[1]
-    # eg2 = eval_dataset[2]
-    # eg24 = eval_dataset[24]
-    # eg25 = eval_dataset[26]
-    # eg26 = eval_dataset[26]
+    # # eg2 = eval_dataset[2]
+    # # eg24 = eval_dataset[24]
+    # # eg25 = eval_dataset[26]
+    # # eg26 = eval_dataset[26]
     # pds()
 
 
     data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
 
+    batch_size = 4
     dataloader_params = {
-            "batch_size": 8,
+            "batch_size": batch_size,
             "collate_fn": data_collator,
             "num_workers": 4,
             "pin_memory": True,
@@ -170,36 +172,40 @@ def main(args):
     
     eval_loader = DataLoader(eval_dataset, **dataloader_params)
 
-    batch = next(iter(eval_loader))
-    input_ids = batch['input_ids']
-    print(f"input_ids: {input_ids.shape}")
-    labels = batch['labels']
-    print(f"labels: {labels.shape}")
-    attention_mask = batch['attention_mask']
-    print(f"attention_mask: {attention_mask.shape}")
-    image_sizes = batch['image_sizes']
-    print(f"image_sizes: {type(image_sizes)} |{len(image_sizes)}, {image_sizes[0]}")
-    modalities = batch['modalities']
-    print(f"modalities: {type(modalities)} |{len(modalities)}, {modalities[0]}")
-    image = batch['images']
-    print(f"image: {type(image)} |{len(image)}, {image[0].shape}")
-    pds()
+    # batch = next(iter(eval_loader))
+    # input_ids = batch['input_ids']
+    # print(f"input_ids: {input_ids.shape}")
+    # labels = batch['labels']
+    # print(f"labels: {labels.shape}")
+    # attention_mask = batch['attention_mask']
+    # print(f"attention_mask: {attention_mask.shape}")
+    # image_sizes = batch['image_sizes']
+    # print(f"image_sizes: {type(image_sizes)} |{len(image_sizes)}, {image_sizes[0]}")
+    # modalities = batch['modalities']
+    # print(f"modalities: {type(modalities)} |{len(modalities)}, {modalities[0]}")
+    # image = batch['images']
+    # print(f"image: {type(image)} |{len(image)}, {image[0].shape}")
 
-    batch = {k: (v.to(device).half() if v.dtype in [torch.float32, torch.float64] else v.to(device))
-            if torch.is_tensor(v) else v 
-            for k, v in batch.items()}
-    image_tensor = batch['images']
-    batch['images'] = [_image.to(dtype=torch.float16, device=device) for _image in image_tensor]
+    # batch = {k: (v.to(device).half() if v.dtype in [torch.float32, torch.float64] else v.to(device))
+    #         if torch.is_tensor(v) else v 
+    #         for k, v in batch.items()}
+    # image_tensor = batch['images']
+    # batch['images'] = [_image.to(dtype=torch.float16, device=device) for _image in image_tensor]
 
-    # batch['drop_mask'] = torch.ones(24).view(24,1).long().to(device)
-    # batch['drop_mask'] = torch.randint(0, 2, (24, 1)).long().to(device)
+    # # batch['drop_mask'] = torch.ones(24*batch_size).view(24,batch_size).long().to(device)
+    # # batch['drop_mask'] = torch.zeros(24*batch_size).view(24,batch_size).long().to(device)
+    # # batch['drop_mask'] = torch.randint(0, 2, (24, batch_size)).long().to(device)
 
-    batch['latency'] = torch.tensor(0.8).half().to(device)
-    # pds()
+    # # batch['latency'] = torch.tensor(0.8).half().to(device)
+    # batch['latency'] = torch.rand(batch_size).half().to(device)
+    # # print(batch['latency'])
+    # # pds()
+    # batch['use_cache'] = False
    
-    out = model(**batch)
-    loss = out['loss']
-    pds()
+    # out = model(**batch)
+    # loss = out['loss']
+    # print(loss)
+    # pds()
 
 
     # return
@@ -213,7 +219,7 @@ def main(args):
     branch_idx = args.branch_idx
     all_masks = np.load(args.mask_array)
     drop_mask = torch.from_numpy(all_masks[branch_idx]).long().to(device)
-    
+    # pds()
 
     for idx, batch in tqdm(enumerate(eval_loader), total=len(eval_loader), desc="Evaluating"):
         # if idx > 10:
@@ -223,12 +229,20 @@ def main(args):
             for k, v in batch.items()}
         image_tensor = batch['images']
         batch['images'] = [_image.to(dtype=torch.float16, device=device) for _image in image_tensor]
+        batch['use_cache'] = False
 
-        batch['drop_mask'] = drop_mask
+        ### drop_mask
+        # drop_mask = drop_mask.repeat(1, batch['input_ids'].shape[0])
+        # batch['drop_mask'] = drop_mask
 
-        pds()
+        ### latency
+        batch['latency'] = torch.rand(batch_size).half().to(device)
+
+        
         out = model(**batch)
         loss = out.loss  # Assuming the loss is stored in out.loss
+        # print(loss)
+        # pds()
 
         # Append the loss value to the list
         losses.append(loss.item())  # .item() extracts the scalar value from the tensor
