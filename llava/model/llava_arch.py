@@ -30,6 +30,7 @@ from llava.mm_utils import get_anyres_image_grid_shape
 from llava.utils import rank0_print, rank_print
 import random
 
+from pdb import set_trace as pds
 
 class LlavaMetaModel:
 

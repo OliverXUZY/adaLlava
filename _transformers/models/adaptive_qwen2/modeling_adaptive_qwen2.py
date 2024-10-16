@@ -814,7 +814,7 @@ class AdaptiveQwen2DecoderLayer(nn.Module):
             if output_attentions:
                 raise NotImplementedError("`output_attentions` is not supported in inference with drop_mask")
             
-            #TODO: handle drop_mask for past_key_value
+            #TODO: handle drop_mask for past_key_value, zhuoyan: right now eval() mode only support batch_size = 1 due to position_ids as hsape [1, seq_len]
             drop_mask = drop_mask.bool()
             if attention_mask is not None:
                 attention_mask = attention_mask[drop_mask]
@@ -1086,16 +1086,16 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
             if use_legacy_cache:
                 past_key_values = DynamicCacheWithMask.from_legacy_cache(past_key_values)
             past_key_values_length = past_key_values.get_usable_length(seq_length)
-        # pds()
 
         if position_ids is None:
             device = input_ids.device if input_ids is not None else inputs_embeds.device
             position_ids = torch.arange(
                 past_key_values_length, seq_length + past_key_values_length, dtype=torch.long, device=device
             )
-            position_ids = position_ids.unsqueeze(0).view(-1, seq_length)
+            position_ids = position_ids.unsqueeze(0).view(-1, seq_length) # [1, seq_len]
         else:
             position_ids = position_ids.view(-1, seq_length).long()
+        # pds()
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)

@@ -3,7 +3,7 @@
 #### Installation
 ```
 conda create -n adallava python=3.10 -y
-conda activate llava
+conda activate adallava
 pip install --upgrade pip  # Enable PEP 660 support.
 pip install -e ".[train]"
 ```
