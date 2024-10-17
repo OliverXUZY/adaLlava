@@ -4,8 +4,11 @@
 # [5, 102]
 # [30, 584]
 
-START_BRANCH=383
-TOTAL_BRANCHES=584
+# START_BRANCH=383
+# TOTAL_BRANCHES=584
+
+START_BRANCH=0
+TOTAL_BRANCHES=102
 
 # Number of available GPUs
 NUM_GPUS=8
@@ -17,8 +20,8 @@ run_command() {
     echo "Running branch $branch on GPU $gpu"
     CUDA_VISIBLE_DEVICES=$gpu python -m llava.eval.forwards.infer_mme \
             --branch-idx $branch \
-            --mask-array ./mask_variations_30.npy \
-            --save-path data/MME/ada_losses/fullset/mask_30
+            --mask-array ./mask_variations_5.npy \
+            --save-path data/MME/ada_losses/fullset/mask_5
 }
 
 # Loop through all branch indices
