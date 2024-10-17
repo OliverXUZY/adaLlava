@@ -28,7 +28,8 @@ from transformers.generation.utils import GenerateOutput
 from llava.model.language_model.llava_qwen import LlavaQwenConfig
 from llava.model.llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
 from transformers import Qwen2Config
-from _transformers.models.adaptive_qwen2.modeling_adaptive_qwen2 import AdaptiveQwen2Model, AdaptiveQwen2ForCausalLM
+# from _transformers.models.adaptive_qwen2.modeling_adaptive_qwen2 import AdaptiveQwen2Model, AdaptiveQwen2ForCausalLM
+from ._transformers.models.adaptive_qwen2.modeling_adaptive_qwen2 import AdaptiveQwen2Model, AdaptiveQwen2ForCausalLM
 from llava.model.adaptive_model.ada_scheduler import ada_Scheduler, ada_SchedulerCfg
 
 # from .qwen.modeling_qwen import QWenLMHeadModel, QWenModel
