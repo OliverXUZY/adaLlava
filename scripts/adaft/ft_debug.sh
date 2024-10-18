@@ -3,8 +3,10 @@
 # export NCCL_IB_DISABLE=0
 # export NCCL_IB_GID_INDEX=3
 # export NCCL_SOCKET_IFNAME=eth0
-# export NCCL_DEBUG=INFO
-export PYTORCH_JIT=0
+export NCCL_DEBUG=INFO
+# export PYTORCH_JIT=0
+export OMP_NUM_THREADS=8
+
 
 LLM_VERSION="Qwen/Qwen2-7B-Instruct"
 LLM_VERSION_CLEAN="${LLM_VERSION//\//_}"
@@ -29,7 +31,7 @@ python llava/train/ada_train_mem.py \
     --version $PROMPT_VERSION \
     --data_path scripts/adaft/si.yaml \
     --image_folder /home/ubuntu/projects/vqaData/data/llava_onevision \
-    --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \
+    --mm_tunable_parts="mm_mlp_adapter" \
     --mm_vision_tower_lr=2e-6 \
     --vision_tower ${VISION_MODEL_VERSION} \
     --mm_projector_type mlp2x_gelu \
@@ -69,3 +71,4 @@ python llava/train/ada_train_mem.py \
     --log_level info
 
         # --deepspeed scripts/zero3.json \
+# --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \
