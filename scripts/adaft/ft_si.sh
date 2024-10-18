@@ -1,8 +1,20 @@
 export OMP_NUM_THREADS=8
-export NCCL_IB_DISABLE=0
+export NCCL_IB_DISABLE=1
 export NCCL_IB_GID_INDEX=3
 export NCCL_SOCKET_IFNAME=eth0
 export NCCL_DEBUG=INFO
+
+export NCCL_TIMEOUT=1800000  # 1800 seconds in milliseconds
+
+# Save current PATH and LD_LIBRARY_PATH
+OLD_PATH=$PATH
+OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
+
+# Set CUDA 12.1 paths
+export CUDA_HOME=/usr/local/cuda-12.1
+export PATH=$CUDA_HOME/bin:$OLD_PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$OLD_LD_LIBRARY_PATH
+
 
 LLM_VERSION="Qwen/Qwen2-7B-Instruct" 
 # for 7b model we recommend bs=1, accum=2, 16 nodes, 128 gpus, lr=1e-5, warmup=0.03
@@ -21,13 +33,13 @@ echo "BASE_RUN_NAME: ${BASE_RUN_NAME}"
 # Stage 2
 PROMPT_VERSION="qwen_1_5"
 RUN_NAME="llava-onevision-${VISION_MODEL_VERSION_CLEAN}-${LLM_VERSION_CLEAN}-si_stage_am9" 
+# PREV_STAGE_CHECKPOINT="/mnt/bn/vl-research/checkpoints/onevision/xxxxxxxxxxxxxxxx" # replace it with your last checkpoint training from mid stage
 PREV_STAGE_CHECKPOINT="lmms-lab/llava-onevision-qwen2-0.5b-si" 
+
 echo "PREV_STAGE_CHECKPOINT: ${PREV_STAGE_CHECKPOINT}"
 echo "MID_RUN_NAME: ${RUN_NAME}"
 
-export NUM_GPUS=4
-export  CUDA_VISIBLE_DEVICES=0,1,2,3
-
+# NUM_GPUS=8
 # ACCELERATE_CPU_AFFINITY=1 torchrun --nproc_per_node="${NUM_GPUS}" \
 deepspeed \
     llava/train/train_mem.py \

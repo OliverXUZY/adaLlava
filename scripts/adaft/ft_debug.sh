@@ -4,6 +4,7 @@
 # export NCCL_IB_GID_INDEX=3
 # export NCCL_SOCKET_IFNAME=eth0
 # export NCCL_DEBUG=INFO
+export PYTORCH_JIT=0
 
 LLM_VERSION="Qwen/Qwen2-7B-Instruct"
 LLM_VERSION_CLEAN="${LLM_VERSION//\//_}"
@@ -23,8 +24,7 @@ echo "PREV_STAGE_CHECKPOINT: ${PREV_STAGE_CHECKPOINT}"
 echo "MID_RUN_NAME: ${RUN_NAME}"
 
 # Run on a single GPU
-CUDA_VISIBLE_DEVICES=0 python llava/train/ada_train_mem.py \
-    --deepspeed scripts/zero3.json \
+python llava/train/ada_train_mem.py \
     --model_name_or_path $PREV_STAGE_CHECKPOINT \
     --version $PROMPT_VERSION \
     --data_path scripts/adaft/si.yaml \
@@ -61,7 +61,11 @@ CUDA_VISIBLE_DEVICES=0 python llava/train/ada_train_mem.py \
     --gradient_checkpointing True \
     --dataloader_num_workers 4 \
     --lazy_preprocess True \
+    --report_to none \
     --torch_compile True \
     --torch_compile_backend "inductor" \
     --dataloader_drop_last True \
-    --frames_upbound 32
+    --frames_upbound 32 \
+    --log_level info
+
+        # --deepspeed scripts/zero3.json \
