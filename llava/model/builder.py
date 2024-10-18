@@ -252,7 +252,12 @@ def load_pretrained_model(
                             setattr(llava_cfg, k, v)
                         model = LlavaQwenForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, config=llava_cfg, **kwargs)
                     else:
-                        model = LlavaQwenForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, attn_implementation=attn_implementation, **kwargs)
+                        model = LlavaQwenForCausalLM.from_pretrained(
+                            model_path, 
+                            low_cpu_mem_usage=True,
+                            attn_implementation=attn_implementation, 
+                            # **kwargs
+                        )
 
             elif "gemma" in model_name.lower():
                 tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
@@ -314,6 +319,7 @@ def load_pretrained_model(
         model.resize_token_embeddings(len(tokenizer))
 
         vision_tower = model.get_vision_tower()
+        # pds() # vision_tower.vision_tower.vision_model.embeddings.patch_embedding.weight
         if not vision_tower.is_loaded:
             vision_tower.load_model(device_map=device_map)
         if device_map != "auto":

@@ -29,7 +29,7 @@ from transformers.modeling_utils import PreTrainedModel
 from transformers import PretrainedConfig
 from transformers.utils import ModelOutput
 from llava.utils import rank0_print
-
+from pdb import set_trace as pds
 
 class SigLipImageProcessor:
     def __init__(self, image_mean=(0.5, 0.5, 0.5), image_std=(0.5, 0.5, 0.5), size=(384, 384), crop_size: Dict[str, int] = None, resample=PILImageResampling.BICUBIC, rescale_factor=1 / 255, data_format=ChannelDimension.FIRST):
@@ -161,12 +161,33 @@ class SigLipVisionEmbeddings(nn.Module):
             padding="valid",
         )
 
+
+        # print("\n2. Patch Embedding parameters:")
+        # print(f"config.num_channels: {config.num_channels}")
+        # print(f"self.embed_dim: {self.embed_dim}")
+        # print(f"self.patch_size: {self.patch_size}")
+
+        # print("\n3. Patch Embedding layer information:")
+        # print(self.patch_embedding)
+        
+        # print("\n3. Patch Embedding weight shape:")
+        # print(f"self.patch_embedding.weight.shape: {self.patch_embedding.weight.shape}")
+        # print(f"self.patch_embedding.weight: {self.patch_embedding.weight}")
+
+        # pds()
+
         self.num_patches = (self.image_size // self.patch_size) ** 2
         self.num_positions = self.num_patches
         self.position_embedding = nn.Embedding(self.num_positions, self.embed_dim)
         self.register_buffer("position_ids", torch.arange(self.num_positions).expand((1, -1)), persistent=False)
 
     def forward(self, pixel_values: torch.FloatTensor) -> torch.Tensor:
+
+        ### cast type, see https://github.com/huggingface/transformers/pull/29209
+        # print("\n3. Patch Embedding weight shape:")
+        # print(f"self.patch_embedding.weight.shape: {self.patch_embedding.weight.shape}")
+        # target_dtype = self.patch_embedding.weight.dtype
+        # patch_embeds = self.patch_embedding(pixel_values.to(dtype=target_dtype))  # shape = [*, width, grid, grid]
         patch_embeds = self.patch_embedding(pixel_values)  # shape = [*, width, grid, grid]
         embeddings = patch_embeds.flatten(2).transpose(1, 2)
 
