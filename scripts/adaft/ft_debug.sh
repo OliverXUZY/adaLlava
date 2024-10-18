@@ -31,7 +31,7 @@ python llava/train/ada_train_mem.py \
     --version $PROMPT_VERSION \
     --data_path scripts/adaft/si.yaml \
     --image_folder /home/ubuntu/projects/vqaData/data/llava_onevision \
-    --mm_tunable_parts="mm_mlp_adapter" \
+    --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \
     --mm_vision_tower_lr=2e-6 \
     --vision_tower ${VISION_MODEL_VERSION} \
     --mm_projector_type mlp2x_gelu \
@@ -68,7 +68,8 @@ python llava/train/ada_train_mem.py \
     --torch_compile_backend "inductor" \
     --dataloader_drop_last True \
     --frames_upbound 32 \
-    --log_level info
+    --log_level info \
+    --ada_scheduler True \
 
         # --deepspeed scripts/zero3.json \
 # --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \

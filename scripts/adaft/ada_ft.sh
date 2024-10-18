@@ -22,15 +22,26 @@ echo "BASE_RUN_NAME: ${BASE_RUN_NAME}"
 PROMPT_VERSION="qwen_1_5"
 RUN_NAME="llava-onevision-${VISION_MODEL_VERSION_CLEAN}-${LLM_VERSION_CLEAN}-si_stage_am9" 
 PREV_STAGE_CHECKPOINT="lmms-lab/llava-onevision-qwen2-0.5b-si" 
+# PREV_STAGE_CHECKPOINT="lmms-lab/llava-onevision-qwen2-7b-ov"
 echo "PREV_STAGE_CHECKPOINT: ${PREV_STAGE_CHECKPOINT}"
 echo "MID_RUN_NAME: ${RUN_NAME}"
 
-export NUM_GPUS=4
+# export NUM_GPUS=4
+# export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export CUDA_VISIBLE_DEVICES=0,1,2,3
+
+
+# export LD_LIBRARY_PATH=/opt/conda/envs/adallava/lib:$LD_LIBRARY_PATH
+
+export LD_LIBRARY_PATH="/opt/conda/envs/adallava/lib:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/usr/local/lib:/usr/lib"
+
+
+> ./scripts/adaft/adaft_stderr.log
+> ./scripts/adaft/adaft_stdout.log
 
 # ACCELERATE_CPU_AFFINITY=1 torchrun --nproc_per_node="${NUM_GPUS}" \
 deepspeed \
-    llava/train/train_mem.py \
+    llava/train/ada_train_mem.py \
     --deepspeed scripts/zero3.json \
     --model_name_or_path $PREV_STAGE_CHECKPOINT \
     --version $PROMPT_VERSION \
@@ -72,5 +83,9 @@ deepspeed \
     --torch_compile True \
     --torch_compile_backend "inductor" \
     --dataloader_drop_last True \
-    --frames_upbound 32
+    --frames_upbound 32 \
+    --ada_scheduler True \
+    2> >(tee -a "./scripts/adaft/adaft_stderr.log" >&2) | tee -a "./scripts/adaft/adaft_stdout.log"
 exit 0;
+
+    # --ada_scheduler True \
