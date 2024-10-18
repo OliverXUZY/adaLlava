@@ -16,7 +16,7 @@ import numpy as np
 import time
 import sys
 
-from llava.train.train import make_supervised_data_module, LazySupervisedDataset, DataCollatorForSupervisedDataset
+from llava.train.ada_train import make_supervised_data_module, LazySupervisedDataset, DataCollatorForSupervisedDataset
 from llava import conversation as conversation_lib
 
 
