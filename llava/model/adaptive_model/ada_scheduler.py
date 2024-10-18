@@ -136,6 +136,11 @@ class ada_Scheduler(nn.Module, ModuleUtilsMixin):
         """
         # print(x.device, x.shape)
         # print(latency.device, latency.shape)
+
+        # target_dtype = self.content_encoder.weight.dtype
+        # latency = latency.to(dtype=target_dtype)
+        # x = x.to(dtype=target_dtype)
+        
         x = self.content_encoder(x)
         latency = self.latency_encoder(latency.view(-1, 1))
         # print("x.shape: ", x.shape)

@@ -60,6 +60,15 @@ logger = logging.get_logger(__name__)
 _CHECKPOINT_FOR_DOC = "Qwen/Qwen2-7B-beta"
 _CONFIG_FOR_DOC = "Qwen2Config"
 
+from dataclasses import dataclass
+@dataclass
+class AdaptiveBaseModelOutputWithPast(BaseModelOutputWithPast):
+    last_hidden_state: torch.FloatTensor = None
+    past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
+    hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
+    attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
+
+    flops: Optional[torch.FloatTensor] = None
 
 # Copied from transformers.models.llama.modeling_llama._get_unpad_data
 def _get_unpad_data(attention_mask):
@@ -1012,8 +1021,7 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
         # Sample Gumbel noise
         gumbels1 = -torch.empty_like(logits).exponential_().log()  # Sample from Gumbel(0, 1)
         gumbels2 = -torch.empty_like(logits).exponential_().log()  # Sample from Gumbel(0, 1)
-        # print(gumbels.shape)
-        # assert False
+        
         # Add Gumbel noise to logits
         noisy_logits = (logits + gumbels1 - gumbels2) / tau  # Apply temperature
         # Apply sigmoid to get probabilities in (0, 1)
@@ -1046,7 +1054,7 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
         latency: Optional[torch.Tensor] = None,
         ada_scheduler_forward: Callable = None,
 
-    ) -> Union[Tuple, BaseModelOutputWithPast]:
+    ) -> Union[Tuple, AdaptiveBaseModelOutputWithPast]:
         """
         drop_mask (torch.int64 tensor, (num_block, bs)): masks for residual connections.
         latency: (torch.float32, (bs, )).
@@ -1146,6 +1154,7 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
 
         # hidden_states = inputs_embeds.shape [bs, seq_len, dim] ==> torch.Size([1, 775, 896])
         # _drop_mask.shape [bs] ==> torch.Size([1])
+        scheduled_drop_mask = None
         if not use_ada_scheduler:
             for block_idx, decoder_layer in enumerate(self.layers):
                 _drop_mask = drop_mask[block_idx] if drop_mask is not None else None
@@ -1241,16 +1250,53 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
         next_cache = None
         if use_cache:
             next_cache = next_decoder_cache.to_legacy_cache() if use_legacy_cache else next_decoder_cache
+        
+        if scheduled_drop_mask is not None:
+            # print(scheduled_drop_mask.shape)
+            flops = scheduled_drop_mask.sum(dim=0) * (1/24) + 3/24
+        else:
+            flops = None
 
         if not return_dict:
             return tuple(v for v in [hidden_states, next_cache, all_hidden_states, all_self_attns] if v is not None)
-        return BaseModelOutputWithPast(
+        return AdaptiveBaseModelOutputWithPast(
             last_hidden_state=hidden_states,
             past_key_values=next_cache,
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
+            flops=flops,
         )
 
+def macs_loss(
+        macs,   # (bs): actual macs
+        latency,         # (bs): required latency
+        beta = 1,
+        alpha = 0.2   # proportion of negative diff
+    ):
+    """
+    The loss for latency
+    """
+    assert macs.size() == latency.size()
+    
+    diff = macs - latency
+    positive_loss = beta * F.relu(diff).sum()
+    # For negative diffs, apply a factor of 0.2 to the absolute values
+    negative_loss = alpha * torch.relu(-diff).sum()
+    # The total loss is the sum of the positive and adjusted negative losses
+    loss = positive_loss + negative_loss
+    # loss = torch.nn.functional.mse_loss(macs, latency, reduction='sum')
+    return loss
+
+def compose_loss(
+        loss1, # scalar
+        loss2, # scalar
+        p = 0.5,
+        eps = 1e-8,
+    ):
+    # ret_loss = p*loss1/(loss1.detach() + eps) + (1-p)*loss2/(loss2.detach() + eps)
+    ret_loss = p*loss1 + (1-p)*loss2
+
+    return ret_loss
 
 class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
     _tied_weights_keys = ["lm_head.weight"]
@@ -1356,6 +1402,9 @@ class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
         hidden_states = outputs[0]
         logits = self.lm_head(hidden_states)
         logits = logits.float()
+        # print(type(outputs))
+        # print(outputs.keys())
+        # assert False
 
         loss = None
         if labels is not None:
@@ -1369,6 +1418,13 @@ class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
             # Enable model parallelism
             shift_labels = shift_labels.to(shift_logits.device)
             loss = loss_fct(shift_logits, shift_labels)
+
+        flops = outputs['flops']
+        if flops is not None:
+            macsloss = macs_loss(flops, latency)
+            composed_loss = compose_loss(macsloss, loss)
+            loss = composed_loss
+        # pds()
 
         if not return_dict:
             output = (logits,) + outputs[1:]

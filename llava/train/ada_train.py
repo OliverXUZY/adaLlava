@@ -40,7 +40,7 @@ import deepspeed
 from transformers import AutoConfig
 from torch.utils.data import Dataset
 from llava.constants import IGNORE_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN, IMAGE_TOKEN_INDEX
-from llava.train.llava_trainer import LLaVATrainer
+from llava.train.llava_trainer import LLaVATrainer, AdaLLaVATrainer
 
 from llava import conversation as conversation_lib
 from llava.model import *
@@ -114,6 +114,8 @@ class ModelArguments:
     delay_load: Optional[bool] = field(default=True)
     add_faster_video: Optional[bool] = field(default=False)
     faster_token_stride: Optional[int] = field(default=10)
+
+    ada_scheduler: bool = field(default=False)
 
 
 
@@ -1071,6 +1073,7 @@ class LazySupervisedDataset(Dataset):
 
         image_size = image.size
         image_aspect_ratio = self.data_args.image_aspect_ratio
+        # pds()
         if overwrite_image_aspect_ratio is not None:
             image_aspect_ratio = overwrite_image_aspect_ratio
         if image_aspect_ratio == "highres":
@@ -1343,6 +1346,18 @@ def get_model(model_args, training_args, bnb_model_from_pretrained_args):
 
     if model_args.mm_spatial_pool_mode is not None:
         overwrite_config["mm_spatial_pool_mode"] = model_args.mm_spatial_pool_mode
+    
+    if model_args.ada_scheduler:
+        ### set up scheduler
+        ada_schdeuler_cfg = {
+                "latency_dim": 64,
+                "content_inp_dim": 896,
+                "content_dim": 256,
+                "n_knobs": 21,
+                "combine_type": "concatenate",
+            }
+
+        overwrite_config["ada_schdeuler_cfg"] = ada_schdeuler_cfg
 
     if overwrite_config:
         assert cfg_pretrained is not None, "cfg_pretrained is None"
@@ -1417,14 +1432,24 @@ def get_model(model_args, training_args, bnb_model_from_pretrained_args):
 
                 deepspeed.utils.set_z3_leaf_modules(model, [Qwen2MoeSparseMoeBlock])
             else:
-                model = LlavaQwenForCausalLM.from_pretrained(
-                    model_args.model_name_or_path,
-                    cache_dir=training_args.cache_dir,
-                    attn_implementation=training_args.attn_implementation,
-                    torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
-                    low_cpu_mem_usage=False,
-                    **customized_kwargs,
-                )
+                if model_args.ada_scheduler:
+                    model = AdaptiveLlavaQwenForCausalLM.from_pretrained(
+                        model_args.model_name_or_path,
+                        cache_dir=training_args.cache_dir,
+                        attn_implementation=training_args.attn_implementation,
+                        torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
+                        low_cpu_mem_usage=False,
+                        **customized_kwargs,
+                    )
+                else:
+                    model = LlavaQwenForCausalLM.from_pretrained(
+                        model_args.model_name_or_path,
+                        cache_dir=training_args.cache_dir,
+                        attn_implementation=training_args.attn_implementation,
+                        torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
+                        low_cpu_mem_usage=False,
+                        **customized_kwargs,
+                    )
         elif "gemma" in model_args.model_name_or_path.lower():
             model = LlavaGemmaForCausalLM.from_pretrained(
                 model_args.model_name_or_path,
@@ -1445,6 +1470,15 @@ def get_model(model_args, training_args, bnb_model_from_pretrained_args):
             low_cpu_mem_usage=False,
             **customized_kwargs,
         )
+    
+    # def print_model_dtypes(model):
+    #     for name, param in model.named_parameters():
+    #         print(f"dtype: {name}: {param.dtype}")
+    #         print(f"Model device: {name}: {param.device}")
+
+    # # Assuming you have a model instance called 'model'
+    # print_model_dtypes(model)
+    # pds()
     return model
 
 
@@ -1649,6 +1683,9 @@ def train(attn_implementation=None):
             model.get_model().vision_resampler.requires_grad_(False)
             # Parse the mm_tunable_parts to decide which parts to unfreeze
             tunable_parts = model_args.mm_tunable_parts.split(",")
+            # for n,p in model.get_model().named_parameters():
+            #     print(n,p.requires_grad)
+            # pds()
             if "mm_mlp_adapter" in tunable_parts:
                 for p in model.get_model().mm_projector.parameters():
                     p.requires_grad = True
@@ -1663,6 +1700,9 @@ def train(attn_implementation=None):
                 for name, param in model.named_parameters():
                     if "vision_tower" not in name and "mm_projector" not in name and "vision_resampler" not in name:
                         param.requires_grad_(True)
+            # for n,p in model.get_model().named_parameters():
+            #     print(n,p.requires_grad)
+            # pds()
 
         total_params = sum(p.ds_numel if hasattr(p, "ds_numel") else p.numel() for p in model.parameters())
         trainable_params = sum(p.ds_numel if hasattr(p, "ds_numel") else p.numel() for p in model.parameters() if p.requires_grad)
@@ -1693,7 +1733,12 @@ def train(attn_implementation=None):
                         module = module.to(torch.bfloat16)
 
     data_module = make_supervised_data_module(tokenizer=tokenizer, data_args=data_args)
-    trainer = LLaVATrainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
+    # dataset = data_module['train_dataset']
+    # eg = dataset[0]
+    # pds()
+    # assert False
+    # trainer = LLaVATrainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
+    trainer = AdaLLaVATrainer(model=model, tokenizer=tokenizer, args=training_args, **data_module)
 
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
         trainer.train(resume_from_checkpoint=True)

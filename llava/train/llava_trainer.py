@@ -25,7 +25,7 @@ if is_datasets_available():
     import datasets
 
 from llava.utils import rank0_print
-
+from pdb import set_trace as pds
 
 def maybe_zero_3(param, ignore_status=False, name=None):
     from deepspeed import zero
@@ -525,3 +525,34 @@ class LLaVADPOTrainer(DPOTrainer):
             pass
         else:
             super(LLaVADPOTrainer, self)._save(output_dir, state_dict)
+
+
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+
+class AdaLLaVATrainer(LLaVATrainer):
+    def _prepare_inputs(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> Dict[str, Union[torch.Tensor, Any]]:
+        """
+        Prepare `inputs` before feeding them to the model, converting them to tensors if they are not already and
+        handling potential state.
+        """
+        inputs = self._prepare_input(inputs)
+        ### construct latency
+        upper = 1.0
+        # Create a new local generator
+        local_rng = torch.Generator()
+        local_rng.manual_seed(42)
+        latency, _ = torch.rand(inputs['input_ids'].shape[0], generator=local_rng).sort()
+        latency = 3/24 + (latency * (upper - 3/24))
+        target_device = inputs['input_ids'].device
+        latency = latency.to(inputs['images'][0].dtype).to(target_device)
+        inputs['latency'] = latency
+        ###
+        if len(inputs) == 0:
+            raise ValueError(
+                "The batch received was empty, your model won't be able to train on it. Double-check that your "
+                f"training dataset contains keys expected by the model: {','.join(self._signature_columns)}."
+            )
+        if self.args.past_index >= 0 and self._past is not None:
+            inputs["mems"] = self._past
+
+        return inputs
