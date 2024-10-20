@@ -539,9 +539,9 @@ class AdaLLaVATrainer(LLaVATrainer):
         ### construct latency
         upper = 1.0
         # Create a new local generator
-        local_rng = torch.Generator()
-        local_rng.manual_seed(42)
-        latency, _ = torch.rand(inputs['input_ids'].shape[0], generator=local_rng).sort()
+        # local_rng = torch.Generator()
+        # local_rng.manual_seed(42)
+        latency, _ = torch.rand(inputs['input_ids'].shape[0]).sort()
         latency = 3/24 + (latency * (upper - 3/24))
         target_device = inputs['input_ids'].device
         latency = latency.to(inputs['images'][0].dtype).to(target_device)

@@ -800,12 +800,30 @@ class AdaptiveQwen2DecoderLayer(nn.Module):
                 use_cache=use_cache,
             )
 
+            ### setup drop_mask dtype
+            target_dtype = hidden_states.dtype
+            drop_mask = drop_mask.to(target_dtype)
+            # print("\n============================================================")
+            # print("hidden_states.dtype: ", hidden_states.dtype)
+            # print("residual.dtype: ", residual.dtype)
+            # print("drop_mask.dtype: ", drop_mask.dtype)
+            # print("drop_mask: ", drop_mask)
+            # print("============================================================\n")
+
             # residual.shape, hidden_states.shape  [1, 6578, 896] drop_mask: [1,1,1]
             residual = residual + hidden_states * drop_mask
 
             # Fully Connected
             hidden_states = residual
             hidden_states = self.post_attention_layernorm(hidden_states)
+            # def print_model_dtypes(model):
+            #     for name, param in model.named_parameters():
+            #         print(f"dtype: {name}: {param.dtype}")
+            #         print(f"Model device: {name}: {param.device}")
+
+            # # Assuming you have a model instance called 'model'
+            # print_model_dtypes(self.mlp)
+            # print("hidden_states.dtype: ", hidden_states.dtype)
             hidden_states = self.mlp(hidden_states)
             hidden_states = residual + hidden_states * drop_mask
 
