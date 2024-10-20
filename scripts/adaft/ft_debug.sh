@@ -3,9 +3,9 @@
 # export NCCL_IB_DISABLE=0
 # export NCCL_IB_GID_INDEX=3
 # export NCCL_SOCKET_IFNAME=eth0
-export NCCL_DEBUG=INFO
+# export NCCL_DEBUG=INFO
 # export PYTORCH_JIT=0
-export OMP_NUM_THREADS=8
+# export OMP_NUM_THREADS=8
 
 
 LLM_VERSION="Qwen/Qwen2-7B-Instruct"
