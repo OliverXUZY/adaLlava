@@ -14,23 +14,25 @@ VISION_MODEL_VERSION_CLEAN="${VISION_MODEL_VERSION//\//_}"
 
 ############### Pretrain ################
 
-BASE_RUN_NAME="llavanext-google_siglip-so400m-patch14-384-Qwen_Qwen2-7B-Instruct-mlp2x_gelu-pretrain_blip558k_plain"
+# BASE_RUN_NAME="llavanext-si_ai2d_gpt4v"
+BASE_RUN_NAME="llavanext-si_alldata"
 echo "BASE_RUN_NAME: ${BASE_RUN_NAME}"
 
 ############### Finetune ################
 
-RUN_NUM="0"
+RUN_NUM="0_8cuda_0.3p"
+# RUN_NUM="0_debug"
 # Stage 2
 PROMPT_VERSION="qwen_1_5"
-RUN_NAME="llava-onevision-${VISION_MODEL_VERSION_CLEAN}-${LLM_VERSION_CLEAN}-si_stage_am9_${RUN_NUM}" 
+RUN_NAME="llava-onevision-${BASE_RUN_NAME}_${RUN_NUM}" 
 PREV_STAGE_CHECKPOINT="lmms-lab/llava-onevision-qwen2-0.5b-si" 
-# PREV_STAGE_CHECKPOINT="lmms-lab/llava-onevision-qwen2-7b-ov"
 echo "PREV_STAGE_CHECKPOINT: ${PREV_STAGE_CHECKPOINT}"
 echo "MID_RUN_NAME: ${RUN_NAME}"
 
 # export NUM_GPUS=4
-# export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+# export CUDA_VISIBLE_DEVICES=0,1,2,3
+# export CUDA_VISIBLE_DEVICES=0
 
 
 # export LD_LIBRARY_PATH=/opt/conda/envs/adallava/lib:$LD_LIBRARY_PATH
@@ -72,7 +74,7 @@ deepspeed \
     --gradient_accumulation_steps 2 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
-    --save_steps 1000 \
+    --save_steps 10 \
     --save_total_limit 1 \
     --learning_rate 1e-5 \
     --weight_decay 0. \

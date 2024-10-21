@@ -25,8 +25,12 @@ PREV_STAGE_CHECKPOINT="lmms-lab/llava-onevision-qwen2-0.5b-si"
 echo "PREV_STAGE_CHECKPOINT: ${PREV_STAGE_CHECKPOINT}"
 echo "MID_RUN_NAME: ${RUN_NAME}"
 
+export LD_LIBRARY_PATH="/opt/conda/envs/adallava/lib:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/usr/local/lib:/usr/lib"
+
+
 # Run on a single GPU
-python llava/train/ada_train_mem.py \
+deepspeed llava/train/train_mem.py \
+    --deepspeed scripts/zero3.json \
     --model_name_or_path $PREV_STAGE_CHECKPOINT \
     --version $PROMPT_VERSION \
     --data_path scripts/adaft/si.yaml \
@@ -47,8 +51,8 @@ python llava/train/ada_train_mem.py \
     --output_dir ./checkpoints/debug/$RUN_NAME \
     --num_train_epochs 1 \
     --per_device_train_batch_size 1 \
-    --per_device_eval_batch_size 4 \
-    --gradient_accumulation_steps 2 \
+    --per_device_eval_batch_size 1 \
+    --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
     --save_steps 1000 \
@@ -69,7 +73,7 @@ python llava/train/ada_train_mem.py \
     --dataloader_drop_last True \
     --frames_upbound 32 \
     --log_level info \
-    --ada_scheduler True \
+
 
         # --deepspeed scripts/zero3.json \
 # --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \
