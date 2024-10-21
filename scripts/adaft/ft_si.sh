@@ -6,14 +6,7 @@ export NCCL_DEBUG=INFO
 
 export NCCL_TIMEOUT=1800000  # 1800 seconds in milliseconds
 
-# Save current PATH and LD_LIBRARY_PATH
-OLD_PATH=$PATH
-OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH
-
-# Set CUDA 12.1 paths
-export CUDA_HOME=/usr/local/cuda-12.1
-export PATH=$CUDA_HOME/bin:$OLD_PATH
-export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$OLD_LD_LIBRARY_PATH
+export LD_LIBRARY_PATH="/opt/conda/envs/adallava/lib:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/usr/local/lib:/usr/lib"
 
 
 LLM_VERSION="Qwen/Qwen2-7B-Instruct" 
@@ -32,7 +25,7 @@ echo "BASE_RUN_NAME: ${BASE_RUN_NAME}"
 
 # Stage 2
 PROMPT_VERSION="qwen_1_5"
-RUN_NAME="llava-onevision-${VISION_MODEL_VERSION_CLEAN}-${LLM_VERSION_CLEAN}-si_stage_am9" 
+RUN_NAME="original-debug" 
 # PREV_STAGE_CHECKPOINT="/mnt/bn/vl-research/checkpoints/onevision/xxxxxxxxxxxxxxxx" # replace it with your last checkpoint training from mid stage
 PREV_STAGE_CHECKPOINT="lmms-lab/llava-onevision-qwen2-0.5b-si" 
 
@@ -46,7 +39,7 @@ deepspeed \
     --deepspeed scripts/zero3.json \
     --model_name_or_path $PREV_STAGE_CHECKPOINT \
     --version $PROMPT_VERSION \
-    --data_path scripts/adaft/si.yaml \
+    --data_path scripts/adaft/ada_si.yaml \
     --image_folder /home/ubuntu/projects/vqaData/data/llava_onevision \
     --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \
     --mm_vision_tower_lr=2e-6 \
@@ -61,7 +54,7 @@ deepspeed \
     --mm_patch_merge_type spatial_unpad \
     --bf16 True \
     --run_name $RUN_NAME \
-    --output_dir /mnt/bn/vl-research/checkpoints/onevision/$RUN_NAME \
+    --output_dir ./checkpoints/adaft/$RUN_NAME \
     --num_train_epochs 1 \
     --per_device_train_batch_size 1 \
     --per_device_eval_batch_size 4 \

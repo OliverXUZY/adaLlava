@@ -8,8 +8,9 @@
 # TOTAL_BRANCHES=584
 
 START_BRANCH=0
-TOTAL_BRANCHES=56
+TOTAL_BRANCHES=28
 
+NUM_BRANCHES=28
 
 # Number of available GPUs
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -23,8 +24,8 @@ run_command() {
     echo "Running branch $branch on GPU $gpu"
     CUDA_VISIBLE_DEVICES=$gpu python -m llava.eval.forwards.infer_adascheduler_mme \
             --latency-idx $branch \
-            --mask-array ./latency_variations_56.npy \
-            --save-path data/MME/ada_losses/fullset/latency_56 \
+            --mask-array ./latency_variations_${NUM_BRANCHES}.npy
+            --save-path data/MME/ada_losses/fullset/latency_${NUM_BRANCHES} \
             --model-path $model_path
 }
 
