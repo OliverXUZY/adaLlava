@@ -70,6 +70,18 @@ class AdaptiveBaseModelOutputWithPast(BaseModelOutputWithPast):
 
     flops: Optional[torch.FloatTensor] = None
 
+
+@dataclass
+class AdaptiveCausalLMOutputWithPast(CausalLMOutputWithPast):
+    loss: Optional[torch.FloatTensor] = None
+    logits: torch.FloatTensor = None
+    past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
+    hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
+    attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
+
+    token_loss: Optional[torch.FloatTensor] = None
+    macs_loss: Optional[torch.FloatTensor] = None
+
 # Copied from transformers.models.llama.modeling_llama._get_unpad_data
 def _get_unpad_data(attention_mask):
     seqlens_in_batch = attention_mask.sum(dim=-1, dtype=torch.int32)
@@ -1437,17 +1449,17 @@ class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
             shift_labels = shift_labels.to(shift_logits.device)
             loss = loss_fct(shift_logits, shift_labels)
 
-        if outputs.get('flops'):
-            flops = outputs['flops']
+        flops = outputs['flops'] if 'flops' in outputs else None
         # print("=============================================")
         # print("loss: ", loss)
         # if outputs.get('flops'):
         #     print("flops: ", flops)
         #     print("latency: ", latency)
-            
+        macsloss = None
         if flops is not None:
             macsloss = macs_loss(flops, latency)
             composed_loss = compose_loss(macsloss, loss)
+            token_loss = loss
             loss = composed_loss
 
         # print("combine_loss: ", loss)
@@ -1458,12 +1470,14 @@ class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
             output = (logits,) + outputs[1:]
             return (loss,) + output if loss is not None else output
 
-        return CausalLMOutputWithPast(
+        return AdaptiveCausalLMOutputWithPast(
             loss=loss,
             logits=logits,
             past_key_values=outputs.past_key_values,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
+            token_loss=token_loss,
+            macs_loss=macsloss
         )
 
     def prepare_inputs_for_generation(
