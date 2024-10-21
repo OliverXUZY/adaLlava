@@ -108,6 +108,22 @@ def main(args):
     device_map = "auto"
     tokenizer, model, image_processor, max_length = load_pretrained_model(model_name_or_path, None, model_name, device_map=device_map)  # Add any other thing you want to pass in llava_model_args
 
+    # Get the lm_head and input embeddings
+    # lm_head_weight = model.lm_head.weight
+    # input_embeddings_weight = model.model.embed_tokens.weight
+
+    # # Check if the weights are the same object in memory
+    # are_tied = (lm_head_weight.data_ptr() == input_embeddings_weight.data_ptr())
+    # print(f"Weights are tied: {are_tied}")
+
+    # # Double-check by comparing the actual values
+    # # if not are_tied:
+    # are_equal = torch.allclose(lm_head_weight, input_embeddings_weight, atol=1e-5)
+    # print(f"Weights are equal: {are_equal}")
+    # pds()
+    # p model.model.layers[0].mlp.up_proj.weight
+
+
     data_args.image_processor = image_processor
     data_args.is_multimodal = True
     model.config.mm_use_im_start_end = data_args.mm_use_im_start_end = False
@@ -210,8 +226,12 @@ def main(args):
 def parge_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, default="lmms-lab/llava-onevision-qwen2-0.5b-si")
-    parser.add_argument("--image-folder", type=str, default="./data/MME/images")
-    parser.add_argument("--question-file", type=str, default="data/MME/json_qa/qa_MME_choice.json", 
+    parser.add_argument("--image-folder", type=str, default="/home/ubuntu/projects/vqaData/data/llava_onevision",
+                        choices=[
+                            "/home/ubuntu/projects/vqaData/data/llava_onevision",
+                            "./data/MME/images",
+                        ])
+    parser.add_argument("--question-file", type=str, default="/home/ubuntu/projects/vqaData/data/llava_onevision/llava-onevision-si/jsons/ai2d_gpt4v.json", 
                         choices=[
                             "data/MME/json_qa/subset_qa_MME_choice.json", 
                             "data/MME/json_qa/qa_MME_choice.json", 

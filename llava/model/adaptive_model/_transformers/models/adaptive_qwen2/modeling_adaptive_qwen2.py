@@ -1440,7 +1440,6 @@ class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
         if outputs.get('flops'):
             flops = outputs['flops']
         # print("=============================================")
-        # print("zhuoyan see loss: ")
         # print("loss: ", loss)
         # if outputs.get('flops'):
         #     print("flops: ", flops)
