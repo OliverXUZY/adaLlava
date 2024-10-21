@@ -274,6 +274,9 @@ class LLaVATrainer(Trainer):
         if self.train_dataset is None or not has_length(self.train_dataset):
             return None
 
+        # from torch.utils.data import DataLoader, Dataset, IterableDataset, RandomSampler, SequentialSampler
+        # return SequentialSampler(self.train_dataset)
+        
         if self.args.group_by_length:
             lengths = self.train_dataset.lengths
             return LengthGroupedSampler(

@@ -1306,13 +1306,13 @@ def macs_loss(
     return loss
 
 def compose_loss(
-        loss1, # scalar
-        loss2, # scalar
-        p = 0.5,
+        macsloss, # scalar
+        original_loss, # scalar
+        p = 0.3,
         eps = 1e-8,
     ):
     # ret_loss = p*loss1/(loss1.detach() + eps) + (1-p)*loss2/(loss2.detach() + eps)
-    ret_loss = p*loss1 + (1-p)*loss2
+    ret_loss = p*macsloss + (1-p)*original_loss
 
     return ret_loss
 
@@ -1437,11 +1437,22 @@ class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
             shift_labels = shift_labels.to(shift_logits.device)
             loss = loss_fct(shift_logits, shift_labels)
 
-        flops = outputs['flops']
+        if outputs.get('flops'):
+            flops = outputs['flops']
+        # print("=============================================")
+        # print("zhuoyan see loss: ")
+        # print("loss: ", loss)
+        # if outputs.get('flops'):
+        #     print("flops: ", flops)
+        #     print("latency: ", latency)
+            
         if flops is not None:
             macsloss = macs_loss(flops, latency)
             composed_loss = compose_loss(macsloss, loss)
             loss = composed_loss
+
+        # print("combine_loss: ", loss)
+        # print("=============================================")
         # pds()
 
         if not return_dict:
