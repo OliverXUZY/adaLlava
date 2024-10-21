@@ -8,20 +8,22 @@
 # TOTAL_BRANCHES=584
 
 START_BRANCH=0
-TOTAL_BRANCHES=102
+TOTAL_BRANCHES=56
+
 
 # Number of available GPUs
-NUM_GPUS=8
+export CUDA_VISIBLE_DEVICES=4,5,6,7
+NUM_GPUS=4
 
 # Function to run the command
 run_command() {
     local gpu=$1
     local branch=$2
     echo "Running branch $branch on GPU $gpu"
-    CUDA_VISIBLE_DEVICES=$gpu python -m llava.eval.forwards.infer_mme \
-            --branch-idx $branch \
-            --mask-array ./mask_variations_5.npy \
-            --save-path data/MME/ada_losses/fullset/mask_5
+    CUDA_VISIBLE_DEVICES=$gpu python -m llava.eval.forwards.infer_adascheduler_mme \
+            --latency-idx $branch \
+            --mask-array ./latency_variations_56.npy \
+            --save-path data/MME/ada_losses/fullset/latency_56
 }
 
 # Loop through all branch indices

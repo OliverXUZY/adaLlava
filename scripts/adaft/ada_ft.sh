@@ -20,7 +20,7 @@ echo "BASE_RUN_NAME: ${BASE_RUN_NAME}"
 
 ############### Finetune ################
 
-RUN_NUM="0_8cuda_0.3p"
+RUN_NUM="0_4cuda_0.3p"
 # RUN_NUM="0_debug"
 # Stage 2
 PROMPT_VERSION="qwen_1_5"
@@ -30,8 +30,8 @@ echo "PREV_STAGE_CHECKPOINT: ${PREV_STAGE_CHECKPOINT}"
 echo "MID_RUN_NAME: ${RUN_NAME}"
 
 # export NUM_GPUS=4
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-# export CUDA_VISIBLE_DEVICES=0,1,2,3
+# export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 # export CUDA_VISIBLE_DEVICES=0
 
 

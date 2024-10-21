@@ -27,7 +27,30 @@ from llava.utils import disable_torch_init
 from llava.mm_utils import tokenizer_image_token, process_images, get_model_name_from_path
 from llava.model.adaptive_model.ada_scheduler import ada_Scheduler, ada_SchedulerCfg
 
-
+def save_grad_status(model, output_dir = "save"):
+    """
+    Save parameter names based on their requires_grad status to separate files.
+    
+    Args:
+    model: The PyTorch model
+    output_dir: Directory to save the output files
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    grad_true_file = os.path.join(output_dir, "grad_true_params.txt")
+    grad_false_file = os.path.join(output_dir, "grad_false_params.txt")
+    all_file = os.path.join(output_dir, "all_params.txt")
+    
+    with open(grad_true_file, 'w') as f_true, open(grad_false_file, 'w') as f_false, open(all_file, 'w') as f_all:
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                f_true.write(f"{name}\n")
+            else:
+                f_false.write(f"{name}\n")
+            f_all.write(f"{name}\n")
+    
+    print(f"Parameters with requires_grad=True saved to: {grad_true_file}")
+    print(f"Parameters with requires_grad=False saved to: {grad_false_file}")
 
 import warnings
 
@@ -75,14 +98,32 @@ def ensure_path(path, early_exit = False):
     else:
         os.makedirs(path)
 
+# @dataclass
+# class DataArguments:
+#     data_path: str = field(default=None,
+#                            metadata={"help": "Path to the training data."})
+#     lazy_preprocess: bool = False
+#     is_multimodal: bool = False
+#     image_folder: Optional[str] = field(default=None)
+#     image_aspect_ratio: str = 'square'
+
 @dataclass
 class DataArguments:
-    data_path: str = field(default=None,
-                           metadata={"help": "Path to the training data."})
+    data_path: str = field(default=None, metadata={"help": "Path to the training data, in llava's instruction.json format. Supporting multiple json files via /path/to/{a,b,c}.json"})
     lazy_preprocess: bool = False
     is_multimodal: bool = False
+    early_mix_text: bool = False
     image_folder: Optional[str] = field(default=None)
-    image_aspect_ratio: str = 'square'
+    image_aspect_ratio: str = "square"
+    image_grid_pinpoints: Optional[str] = field(default=None)
+    image_crop_resolution: Optional[int] = field(default=None)
+    image_split_resolution: Optional[int] = field(default=None)
+
+    video_folder: Optional[str] = field(default=None)
+    video_fps: Optional[int] = field(default=1)
+    frames_upbound: Optional[int] = field(default=0)
+    add_time_instruction: Optional[bool] = field(default=False)
+    force_sample: Optional[bool] = field(default=False)
 
 def main(args):
     timer = Timer()
@@ -92,7 +133,51 @@ def main(args):
         lazy_preprocess=True,
         is_multimodal=True,
         image_folder=args.image_folder,
-        image_aspect_ratio='pad'
+        early_mix_text=False,
+        image_aspect_ratio='anyres_max_9',
+        image_grid_pinpoints=[[384, 384],
+                                [384, 768],
+                                [384, 1152],
+                                [384, 1536],
+                                [384, 1920],
+                                [384, 2304],
+                                [768, 384],
+                                [768, 768],
+                                [768, 1152],
+                                [768, 1536],
+                                [768, 1920],
+                                [768, 2304],
+                                [1152, 384],
+                                [1152, 768],
+                                [1152, 1152],
+                                [1152, 1536],
+                                [1152, 1920],
+                                [1152, 2304],
+                                [1536, 384],
+                                [1536, 768],
+                                [1536, 1152],
+                                [1536, 1536],
+                                [1536, 1920],
+                                [1536, 2304],
+                                [1920, 384],
+                                [1920, 768],
+                                [1920, 1152],
+                                [1920, 1536],
+                                [1920, 1920],
+                                [1920, 2304],
+                                [2304, 384],
+                                [2304, 768],
+                                [2304, 1152],
+                                [2304, 1536],
+                                [2304, 1920],
+                                [2304, 2304]],
+            image_crop_resolution=None,
+            image_split_resolution=None,
+            video_folder=None,
+            video_fps=1,
+            frames_upbound=32,
+            add_time_instruction=False,
+            force_sample=False,
     )
 
     print(f"read from file: {args.question_file}")
@@ -134,6 +219,29 @@ def main(args):
     
     model.train()
 
+    # Get the lm_head and input embeddings
+    # lm_head_weight = model.lm_head.weight
+    # input_embeddings_weight = model.model.embed_tokens.weight
+
+    # # Check if the weights are the same object in memory
+    # are_tied = (lm_head_weight.data_ptr() == input_embeddings_weight.data_ptr())
+    # print(f"Weights are tied: {are_tied}")
+
+    # # Double-check by comparing the actual values
+    # # if not are_tied:
+    # are_equal = torch.allclose(lm_head_weight, input_embeddings_weight, atol=1e-5)
+    # print(f"Weights are equal: {are_equal}")
+
+    # pds()
+    # p model.model.layers[0].mlp.up_proj.weight
+    # p model.model.ada_scheduler.combined_fc.up_proj.weight
+    # p model.lm_head.weight
+
+    #### important: tie lm_head weights otherwise it will be random init !!!!
+    model.lm_head.weight = model.model.embed_tokens.weight
+
+
+
     
 
     data_args.image_processor = image_processor
@@ -150,6 +258,16 @@ def main(args):
     
     # eg = eval_dataset[0]
     # pprint(eg)
+    # img = eg['image'][0][0]
+    # for idx, eg in enumerate(eval_dataset):
+    #     if idx > 3:
+    #         break
+    #     input_ids = eg['input_ids']
+    #     print(f"input_ids: {input_ids.shape}")
+    #     print(input_ids[-10:])
+    #     print("==============================================")
+
+
     
     # eg1 = eval_dataset[1]
     # # eg2 = eval_dataset[2]
@@ -161,7 +279,7 @@ def main(args):
 
     data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
 
-    batch_size = 4
+    batch_size = 1
     dataloader_params = {
             "batch_size": batch_size,
             "collate_fn": data_collator,
@@ -172,40 +290,56 @@ def main(args):
     
     eval_loader = DataLoader(eval_dataset, **dataloader_params)
 
-    batch = next(iter(eval_loader))
-    input_ids = batch['input_ids']
-    print(f"input_ids: {input_ids.shape}")
-    labels = batch['labels']
-    print(f"labels: {labels.shape}")
-    attention_mask = batch['attention_mask']
-    print(f"attention_mask: {attention_mask.shape}")
-    image_sizes = batch['image_sizes']
-    print(f"image_sizes: {type(image_sizes)} |{len(image_sizes)}, {image_sizes[0]}")
-    modalities = batch['modalities']
-    print(f"modalities: {type(modalities)} |{len(modalities)}, {modalities[0]}")
-    image = batch['images']
-    print(f"image: {type(image)} |{len(image)}, {image[0].shape}")
+    # batch = next(iter(eval_loader))
+    # batch = next(iter(eval_loader))
+    # # for idx, batch in enumerate(eval_loader):
+    # #     if idx > 1:
+    # #         break
+    # input_ids = batch['input_ids']
+    # print(f"input_ids: {input_ids.shape}")
+    # labels = batch['labels']
+    # print(f"labels: {labels.shape}")
+    # attention_mask = batch['attention_mask']
+    # print(f"attention_mask: {attention_mask.shape}")
+    # image_sizes = batch['image_sizes']
+    # print(f"image_sizes: {type(image_sizes)} |{len(image_sizes)}, {image_sizes}")
+    # modalities = batch['modalities']
+    # print(f"modalities: {type(modalities)} |{len(modalities)}, {modalities}")
+    # image = batch['images']
+    # print(f"image: {type(image)} |{len(image)}, {image[0].shape}")
+    # print([i.shape for i in image])
+    # print(input_ids[:,-10:])
+    # print("==============================================")
+    # img = image[0]
+    # print(img.mean())
+    # print(img[0].mean())
+    # print(img[1].mean())
+    # print(img[2].mean())
 
-    batch = {k: (v.to(device).half() if v.dtype in [torch.float32, torch.float64] else v.to(device))
-            if torch.is_tensor(v) else v 
-            for k, v in batch.items()}
-    image_tensor = batch['images']
-    batch['images'] = [_image.to(dtype=torch.float16, device=device) for _image in image_tensor]
-
-    # batch['drop_mask'] = torch.ones(24*batch_size).view(24,batch_size).long().to(device)
-    # batch['drop_mask'] = torch.zeros(24*batch_size).view(24,batch_size).long().to(device)
-    # batch['drop_mask'] = torch.randint(0, 2, (24, batch_size)).long().to(device)
-
-    # batch['latency'] = torch.tensor(0.8).half().to(device)
-    batch['latency'] = torch.rand(batch_size).half().to(device)
-    # print(batch['latency'])
     # pds()
-    batch['use_cache'] = False
+
+    # batch = {k: (v.to(device).half() if v.dtype in [torch.float32, torch.float64] else v.to(device))
+    #         if torch.is_tensor(v) else v 
+    #         for k, v in batch.items()}
+    # image_tensor = batch['images']
+    # batch['images'] = [_image.to(dtype=torch.float16, device=device) for _image in image_tensor]
+
+    # # # batch['drop_mask'] = torch.ones(24*batch_size).view(24,batch_size).long().to(device)
+    # # # batch['drop_mask'] = torch.zeros(24*batch_size).view(24,batch_size).long().to(device)
+    # # # batch['drop_mask'] = torch.randint(0, 2, (24, batch_size)).long().to(device)
+
+    # # # batch['latency'] = torch.tensor(0.8).half().to(device)
+    # latency = torch.tensor([args.latency]).half().to(device)
+    # # batch['latency'] = torch.rand(batch_size).half().to(device)
+    # # # print(batch['latency'])
+    # # pds()
+    # # batch['use_cache'] = False
+    # batch['latency'] = latency
    
-    out = model(**batch)
-    loss = out['loss']
-    print(loss)
-    pds()
+    # out = model(**batch)
+    # loss = out['loss']
+    # print(loss)
+    # pds()
 
 
     # return
@@ -216,11 +350,17 @@ def main(args):
     # drop_mask[:] = 1
     # pds()
 
-    branch_idx = args.branch_idx
-    all_masks = np.load(args.mask_array)
-    drop_mask = torch.from_numpy(all_masks[branch_idx]).long().to(device)
+    # branch_idx = args.branch_idx
+    # all_masks = np.load(args.mask_array)
+    # drop_mask = torch.from_numpy(all_masks[branch_idx]).long().to(device)
     # pds()
 
+    if args.latency is not None:
+        latency = torch.tensor([args.latency]).half().to(device)  ## only support bs = 1
+    else:
+        all_latencys = np.load(args.mask_latency)
+        latency = torch.tensor(all_latencys[args.latency_idx]).half().to(device).view(batch_size)
+    
     for idx, batch in tqdm(enumerate(eval_loader), total=len(eval_loader), desc="Evaluating"):
         # if idx > 10:
         #     break
@@ -231,22 +371,28 @@ def main(args):
         batch['images'] = [_image.to(dtype=torch.float16, device=device) for _image in image_tensor]
         batch['use_cache'] = False
 
+        # print(batch['images'][0].shape)
+        # pds()
+
         ### drop_mask
-        drop_mask = drop_mask.repeat(1, batch['input_ids'].shape[0])
-        batch['drop_mask'] = drop_mask
+        # drop_mask = drop_mask.repeat(1, batch['input_ids'].shape[0])
         # pds()
 
         ### latency
         # batch['latency'] = torch.rand(batch_size).half().to(device)
-
+        batch['latency'] = latency
+        
         
         out = model(**batch)
         loss = out.loss  # Assuming the loss is stored in out.loss
-        # print(loss)
+        token_loss = out.token_loss
+        # print("combine_loss: ", loss)
+        # print("token_loss: ", out.token_loss)
+        # print("macs_loss: ", out.macs_loss)
         pds()
 
         # Append the loss value to the list
-        losses.append(loss.item())  # .item() extracts the scalar value from the tensor
+        losses.append(token_loss.item())  # .item() extracts the scalar value from the tensor
 
     print(f"forward done, using time {time_str(timer.end())}")
 
@@ -261,8 +407,8 @@ def main(args):
     ensure_path(save_path)
 
     # Assuming losses_array is your numpy array of shape (336825,) and dtype float32
-    np.save(f'{save_path}/branch{branch_idx}_losses.npy', losses_array)
-    print(f"save to {save_path}/subset_branch{branch_idx}_losses.npy, using time {time_str(timer.end())}")
+    np.save(f'{save_path}/losses_latency_{args.latency}.npy', losses_array)
+    print(f"save to {save_path}/losses_latency_{args.latency}.npy.npy, using time {time_str(timer.end())}")
 
 
 
@@ -272,24 +418,27 @@ def main(args):
 def parge_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, default="lmms-lab/llava-onevision-qwen2-0.5b-si")
-    parser.add_argument("--image-folder", type=str, default="./data/MME/images")
-    parser.add_argument("--question-file", type=str, default="data/MME/json_qa/qa_MME_choice.json", 
+    parser.add_argument("--image-folder", type=str, default="/home/ubuntu/projects/vqaData/data/llava_onevision",
+                        choices=[
+                             "/home/ubuntu/projects/vqaData/data/llava_onevision",
+                             "./data/MME/images"
+                        ])
+    parser.add_argument("--question-file", type=str, default="/home/ubuntu/projects/vqaData/data/llava_onevision/llava-onevision-si/jsons/ai2d_gpt4v.json", 
                         choices=[
                             "data/MME/json_qa/subset_qa_MME_choice.json", 
                             "data/MME/json_qa/qa_MME_choice.json", 
+                            "/home/ubuntu/projects/vqaData/data/llava_onevision/llava-onevision-si/jsons/ai2d_gpt4v.json"
 
                         ])
     parser.add_argument("--answers-file", type=str, default="answers/answer.jsonl")
     parser.add_argument("--conv-mode", type=str, default="qwen_1_5")
 
     parser.add_argument("--mask-array", type=str, default="./mask_variations_5.npy")
-    parser.add_argument("--save-path", type=str, default="data/MME/ada_losses/fullset/mask_5",
-                        choices = [
-                            "data/MME/ada_losses/subset/mask_5",
-                            "data/MME/ada_losses/fullset/mask_5",
-                            "data/MME/ada_losses/fullset/mask_30",
-                        ])
-    parser.add_argument("--branch-idx", type=int, default=0)
+    parser.add_argument("--save-path", type=str, default="data/MME/ada_losses/fullset/latency_56",)
+    parser.add_argument("--latency", type=float, default=None)
+
+    parser.add_argument("--mask-latency", type=str, default="./latency_variations_56.npy")
+    parser.add_argument("--latency-idx", type=int, default=0)
     args = parser.parse_args()
 
     return args
