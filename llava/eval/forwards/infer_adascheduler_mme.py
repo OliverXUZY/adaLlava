@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampl
 import numpy as np
 import time
 import sys
+import gc
 
 from llava.train.ada_train import make_supervised_data_module, LazySupervisedDataset, DataCollatorForSupervisedDataset
 from llava import conversation as conversation_lib
@@ -274,7 +275,6 @@ def main(args):
     # # eg24 = eval_dataset[24]
     # # eg25 = eval_dataset[26]
     # # eg26 = eval_dataset[26]
-    # pds()
 
 
     data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
@@ -346,7 +346,6 @@ def main(args):
 
     # drop_mask = torch.randint(0, 2, (24, 1)).long().to(device)
     # drop_mask[:] = 1
-    # pds()
 
     # branch_idx = args.branch_idx
     # all_masks = np.load(args.mask_array)
@@ -356,6 +355,7 @@ def main(args):
     token_losses = []
     macs_losses = []
     flops_all = []
+    skipped_samples = []
     if args.latency is not None:
         latency = torch.tensor([args.latency]).half().to(device)  ## only support bs = 1
     else:
@@ -380,22 +380,33 @@ def main(args):
         ### latency
         # batch['latency'] = torch.rand(batch_size).half().to(device)
         batch['latency'] = latency
-        
-        
-        out = model(**batch)
-        pds()
-        loss = out.loss  # Assuming the loss is stored in out.loss
-        token_loss = out.token_loss
-        # print("combine_loss: ", loss)
-        # print("token_loss: ", out.token_loss)
-        # print("macs_loss: ", out.macs_loss)
-        macs_loss = out.macs_loss
-        flops = out.flops
+        with torch.no_grad():
+            try:
+                out = model(**batch)
+                loss = out.loss  # Assuming the loss is stored in out.loss
+                token_loss = out.token_loss
+                # print("combine_loss: ", loss)
+                # print("token_loss: ", out.token_loss)
+                # print("macs_loss: ", out.macs_loss)
+                macs_loss = out.macs_loss
+                flops = out.flops
 
-        # Append the loss value to the list
-        token_losses.append(token_loss.item())  # .item() extracts the scalar value from the tensor
-        macs_losses.append(macs_loss.item())  # .item() extracts the scalar value from the tensor
-        flops_all.append(flops.item())  # .item() extracts the scalar value from the tensor
+                # Append the loss value to the list
+                token_losses.append(token_loss.item())  # .item() extracts the scalar value from the tensor
+                macs_losses.append(macs_loss.item())  # .item() extracts the scalar value from the tensor
+                flops_all.append(flops.item())  # .item() extracts the scalar value from the tensor
+            except torch.cuda.OutOfMemoryError:
+                print(f"OOM error occurred at index {idx}. Skipping this sample.")
+                skipped_samples.append(str(idx))
+                token_losses.append(-1)  # .item() extracts the scalar value from the tensor
+                macs_losses.append(-1)  # .item() extracts the scalar value from the tensor
+                flops_all.append(-1)  # .item() extracts the scalar value from the tensor
+                continue
+
+        # Clear unnecessary variables
+        del out, loss, token_loss, macs_loss, flops
+        torch.cuda.empty_cache()
+        gc.collect()
 
 
     print(f"forward done, using time {time_str(timer.end())}")
@@ -413,12 +424,14 @@ def main(args):
     ensure_path(save_path)
 
     # Assuming losses_array is your numpy array of shape (336825,) and dtype float32
-    np.save(f'{save_path}/token_losses_latency_{args.latency}.npy', token_losses_array)
-    print(f"save to {save_path}/token_losses_latency_{args.latency}.npy, using time {time_str(timer.end())}")
-    np.save(f'{save_path}/macs_losses_latency_{args.latency}.npy', macs_losses_array)
-    print(f"save to {save_path}/macs_losses_latency_{args.latency}.npy, using time {time_str(timer.end())}")
-    np.save(f'{save_path}/flops_all_latency_{args.latency}.npy', flops_all_array)
-    print(f"save to {save_path}/flops_all_latency_{args.latency}.npy, using time {time_str(timer.end())}")
+    np.save(f'{save_path}/token_losses_latency_{args.latency_idx}.npy', token_losses_array)
+    print(f"save to {save_path}/token_losses_latency_{args.latency_idx}.npy, using time {time_str(timer.end())}")
+    np.save(f'{save_path}/macs_losses_latency_{args.latency_idx}.npy', macs_losses_array)
+    print(f"save to {save_path}/macs_losses_latency_{args.latency_idx}.npy, using time {time_str(timer.end())}")
+    np.save(f'{save_path}/flops_all_latency_{args.latency_idx}.npy', flops_all_array)
+    print(f"save to {save_path}/flops_all_latency_{args.latency_idx}.npy, using time {time_str(timer.end())}")
+
+    save_json(skipped_samples, f'{save_path}/skipped_id_{args.latency_idx}.json')
 
     
 

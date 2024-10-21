@@ -226,15 +226,16 @@ def main(args):
 def parge_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, default="lmms-lab/llava-onevision-qwen2-0.5b-si")
-    parser.add_argument("--image-folder", type=str, default="/home/ubuntu/projects/vqaData/data/llava_onevision",
+    parser.add_argument("--image-folder", type=str, default="./data/MME/images",
                         choices=[
                             "/home/ubuntu/projects/vqaData/data/llava_onevision",
                             "./data/MME/images",
                         ])
-    parser.add_argument("--question-file", type=str, default="/home/ubuntu/projects/vqaData/data/llava_onevision/llava-onevision-si/jsons/ai2d_gpt4v.json", 
+    parser.add_argument("--question-file", type=str, default="data/MME/json_qa/qa_MME_choice.json", 
                         choices=[
                             "data/MME/json_qa/subset_qa_MME_choice.json", 
                             "data/MME/json_qa/qa_MME_choice.json", 
+                            "/home/ubuntu/projects/vqaData/data/llava_onevision/llava-onevision-si/jsons/ai2d_gpt4v.json"
 
                         ])
     parser.add_argument("--answers-file", type=str, default="answers/answer.jsonl")

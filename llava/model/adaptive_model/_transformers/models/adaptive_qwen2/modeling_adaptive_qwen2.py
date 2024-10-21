@@ -1457,7 +1457,7 @@ class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
         # if outputs.get('flops'):
         #     print("flops: ", flops)
         #     print("latency: ", latency)
-        macsloss = None
+        macsloss = token_loss = None
         if flops is not None:
             macsloss = macs_loss(flops, latency)
             composed_loss = compose_loss(macsloss, loss)
