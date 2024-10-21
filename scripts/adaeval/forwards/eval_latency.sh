@@ -12,9 +12,10 @@ TOTAL_BRANCHES=56
 
 
 # Number of available GPUs
-export CUDA_VISIBLE_DEVICES=4,5,6,7
-NUM_GPUS=4
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+NUM_GPUS=8
 
+model_path="checkpoints/adaft/llava-onevision-llavanext-si_alldata_0_4cuda_0.3p/checkpoint-10030"
 # Function to run the command
 run_command() {
     local gpu=$1
@@ -23,7 +24,8 @@ run_command() {
     CUDA_VISIBLE_DEVICES=$gpu python -m llava.eval.forwards.infer_adascheduler_mme \
             --latency-idx $branch \
             --mask-array ./latency_variations_56.npy \
-            --save-path data/MME/ada_losses/fullset/latency_56
+            --save-path data/MME/ada_losses/fullset/latency_56 \
+            --model-path $model_path
 }
 
 # Loop through all branch indices

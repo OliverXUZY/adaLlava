@@ -344,8 +344,6 @@ def main(args):
 
     # return
 
-    losses = []
-
     # drop_mask = torch.randint(0, 2, (24, 1)).long().to(device)
     # drop_mask[:] = 1
     # pds()
@@ -354,7 +352,10 @@ def main(args):
     # all_masks = np.load(args.mask_array)
     # drop_mask = torch.from_numpy(all_masks[branch_idx]).long().to(device)
     # pds()
-
+    
+    token_losses = []
+    macs_losses = []
+    flops_all = []
     if args.latency is not None:
         latency = torch.tensor([args.latency]).half().to(device)  ## only support bs = 1
     else:
@@ -362,8 +363,6 @@ def main(args):
         latency = torch.tensor(all_latencys[args.latency_idx]).half().to(device).view(batch_size)
     
     for idx, batch in tqdm(enumerate(eval_loader), total=len(eval_loader), desc="Evaluating"):
-        # if idx > 10:
-        #     break
         batch = {k: (v.to(device).half() if v.dtype in [torch.float32, torch.float64] else v.to(device))
             if torch.is_tensor(v) else v 
             for k, v in batch.items()}
@@ -384,51 +383,58 @@ def main(args):
         
         
         out = model(**batch)
+        pds()
         loss = out.loss  # Assuming the loss is stored in out.loss
         token_loss = out.token_loss
         # print("combine_loss: ", loss)
         # print("token_loss: ", out.token_loss)
         # print("macs_loss: ", out.macs_loss)
-        pds()
+        macs_loss = out.macs_loss
+        flops = out.flops
 
         # Append the loss value to the list
-        losses.append(token_loss.item())  # .item() extracts the scalar value from the tensor
+        token_losses.append(token_loss.item())  # .item() extracts the scalar value from the tensor
+        macs_losses.append(macs_loss.item())  # .item() extracts the scalar value from the tensor
+        flops_all.append(flops.item())  # .item() extracts the scalar value from the tensor
+
 
     print(f"forward done, using time {time_str(timer.end())}")
 
     # After the loop, convert the list to a numpy array
-    losses_array = np.array(losses, dtype=np.float32)
+    token_losses_array = np.array(token_losses, dtype=np.float32)
+    macs_losses_array = np.array(macs_losses, dtype=np.float32)
+    flops_all_array = np.array(flops_all, dtype=np.float32)
 
     # Now losses_array is a numpy array of float32 containing all your loss values
-    print(f"Shape of losses array: {losses_array.shape}")
-    print(f"Data type of losses array: {losses_array.dtype}")
+    print(f"Shape of token_losses array: {token_losses_array.shape}")
+    print(f"Data type of token_losses array: {token_losses_array.dtype}")
 
     save_path = args.save_path
     ensure_path(save_path)
 
     # Assuming losses_array is your numpy array of shape (336825,) and dtype float32
-    np.save(f'{save_path}/losses_latency_{args.latency}.npy', losses_array)
-    print(f"save to {save_path}/losses_latency_{args.latency}.npy.npy, using time {time_str(timer.end())}")
-
-
-
+    np.save(f'{save_path}/token_losses_latency_{args.latency}.npy', token_losses_array)
+    print(f"save to {save_path}/token_losses_latency_{args.latency}.npy, using time {time_str(timer.end())}")
+    np.save(f'{save_path}/macs_losses_latency_{args.latency}.npy', macs_losses_array)
+    print(f"save to {save_path}/macs_losses_latency_{args.latency}.npy, using time {time_str(timer.end())}")
+    np.save(f'{save_path}/flops_all_latency_{args.latency}.npy', flops_all_array)
+    print(f"save to {save_path}/flops_all_latency_{args.latency}.npy, using time {time_str(timer.end())}")
 
     
 
 def parge_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str, default="lmms-lab/llava-onevision-qwen2-0.5b-si")
-    parser.add_argument("--image-folder", type=str, default="/home/ubuntu/projects/vqaData/data/llava_onevision",
+    parser.add_argument("--image-folder", type=str, default="./data/MME/images",
                         choices=[
                              "/home/ubuntu/projects/vqaData/data/llava_onevision",
                              "./data/MME/images"
                         ])
-    parser.add_argument("--question-file", type=str, default="/home/ubuntu/projects/vqaData/data/llava_onevision/llava-onevision-si/jsons/ai2d_gpt4v.json", 
+    parser.add_argument("--question-file", type=str, default="data/MME/json_qa/qa_MME_choice.json", 
                         choices=[
                             "data/MME/json_qa/subset_qa_MME_choice.json", 
                             "data/MME/json_qa/qa_MME_choice.json", 
-                            "/home/ubuntu/projects/vqaData/data/llava_onevision/llava-onevision-si/jsons/ai2d_gpt4v.json"
-
+                            "/home/ubuntu/projects/vqaData/data/llava_onevision/llava-onevision-si/jsons/ai2d_gpt4v.json",
                         ])
     parser.add_argument("--answers-file", type=str, default="answers/answer.jsonl")
     parser.add_argument("--conv-mode", type=str, default="qwen_1_5")
