@@ -41,7 +41,18 @@ save loss to `/home/ubuntu/projects/vqaData/data/MME/ada_losses`.
 ```
 python -m llava.eval.forwards.infer_adascheduler_mme
 ```
+with trained model path:
+```
+python -m llava.eval.forwards.infer_adascheduler_mme --model-path checkpoints/adaft/llava-onevision-google_siglip-so400m-patch14-384-Qwen_Qwen2-0.5B-Instruct-si_stage_am9_0
+```
+zhuoyan: needed debug
 
+##### generate different latencys
+```
+python debug/latencys.py
+
+Latency variations saved as 'latency_variations_56.npy'
+```
 
 
 -----
