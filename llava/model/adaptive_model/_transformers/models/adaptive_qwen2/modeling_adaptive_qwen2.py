@@ -81,6 +81,8 @@ class AdaptiveCausalLMOutputWithPast(CausalLMOutputWithPast):
 
     token_loss: Optional[torch.FloatTensor] = None
     macs_loss: Optional[torch.FloatTensor] = None
+    flops: Optional[torch.FloatTensor] = None
+    latency: Optional[torch.FloatTensor] = None
 
 # Copied from transformers.models.llama.modeling_llama._get_unpad_data
 def _get_unpad_data(attention_mask):
@@ -1477,7 +1479,9 @@ class AdaptiveQwen2ForCausalLM(Qwen2PreTrainedModel):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
             token_loss=token_loss,
-            macs_loss=macsloss
+            macs_loss=macsloss,
+            flops=flops,
+            latency=latency,
         )
 
     def prepare_inputs_for_generation(
