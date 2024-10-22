@@ -16,7 +16,8 @@ NUM_BRANCHES=28
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 NUM_GPUS=8
 
-model_path="checkpoints/adaft/llava-onevision-llavanext-si_alldata_0_4cuda_0.3p/checkpoint-10030"
+# model_path="checkpoints/adaft/llava-onevision-llavanext-si_alldata_0_4cuda_0.3p/checkpoint-10030"
+model_path="checkpoints/adaft/llava-onevision-llavanext-si_MME_0_8cuda_0.3p"
 # Function to run the command
 run_command() {
     local gpu=$1

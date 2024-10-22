@@ -423,7 +423,8 @@ def main(args):
     print(f"Shape of token_losses array: {token_losses_array.shape}")
     print(f"Data type of token_losses array: {token_losses_array.dtype}")
 
-    save_path = args.save_path
+    save_model_path = args.model_path.split("/")[-1].replace("-","_").replace(".","_")
+    save_path = f"{args.save_path}/{save_model_path}"
     ensure_path(save_path)
 
     # Assuming losses_array is your numpy array of shape (336825,) and dtype float32
