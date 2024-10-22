@@ -15,23 +15,24 @@ VISION_MODEL_VERSION_CLEAN="${VISION_MODEL_VERSION//\//_}"
 ############### Pretrain ################
 
 # BASE_RUN_NAME="llavanext-si_ai2d_gpt4v"
-BASE_RUN_NAME="llavanext-si_alldata"
+# BASE_RUN_NAME="llavanext-si_alldata"
+BASE_RUN_NAME="llavanext-si_MME"
 echo "BASE_RUN_NAME: ${BASE_RUN_NAME}"
 
 ############### Finetune ################
 
-RUN_NUM="0_4cuda_0.3p"
+RUN_NUM="1"
 # RUN_NUM="0_debug"
 # Stage 2
 PROMPT_VERSION="qwen_1_5"
-RUN_NAME="llava-onevision-${BASE_RUN_NAME}_${RUN_NUM}" 
+RUN_NAME="${BASE_RUN_NAME}_8cuda_0.3p_${RUN_NUM}" 
 PREV_STAGE_CHECKPOINT="lmms-lab/llava-onevision-qwen2-0.5b-si" 
 echo "PREV_STAGE_CHECKPOINT: ${PREV_STAGE_CHECKPOINT}"
 echo "MID_RUN_NAME: ${RUN_NAME}"
 
 # export NUM_GPUS=4
-# export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+# export CUDA_VISIBLE_DEVICES=0,1,2,3
 # export CUDA_VISIBLE_DEVICES=0
 
 
@@ -52,8 +53,8 @@ deepspeed \
     --deepspeed scripts/zero3.json \
     --model_name_or_path $PREV_STAGE_CHECKPOINT \
     --version $PROMPT_VERSION \
-    --data_path scripts/adaft/ada_si.yaml \
-    --image_folder /home/ubuntu/projects/vqaData/data/llava_onevision \
+    --data_path scripts/adaft/ada_MME.yaml \
+    --image_folder /home/ubuntu/projects/vqaData/data/MME/images \
     --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \
     --mm_vision_tower_lr=2e-6 \
     --vision_tower ${VISION_MODEL_VERSION} \
@@ -75,7 +76,7 @@ deepspeed \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
     --save_steps 10 \
-    --save_total_limit 1 \
+    --save_total_limit -1 \
     --learning_rate 1e-5 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
@@ -96,3 +97,6 @@ deepspeed \
 exit 0;
 
     # --ada_scheduler True \
+
+    # --data_path scripts/adaft/ada_si.yaml \
+    # --image_folder /home/ubuntu/projects/vqaData/data/llava_onevision \
