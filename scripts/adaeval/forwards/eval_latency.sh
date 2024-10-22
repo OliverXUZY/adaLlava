@@ -8,16 +8,28 @@
 # TOTAL_BRANCHES=584
 
 START_BRANCH=0
-TOTAL_BRANCHES=28
+TOTAL_BRANCHES=8
 
-NUM_BRANCHES=28
+NUM_BRANCHES=8
 
 # Number of available GPUs
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 NUM_GPUS=8
 
 # model_path="checkpoints/adaft/llava-onevision-llavanext-si_alldata_0_4cuda_0.3p/checkpoint-10030"
-model_path="checkpoints/adaft/llava-onevision-llavanext-si_MME_0_8cuda_0.3p"
+# model_path="checkpoints/adaft/llava-onevision-llavanext-si_MME_0_8cuda_0.3p"
+# model_path="checkpoints/adaft/llavanext-si_MME_8cuda_0.3p_1/checkpoint-10"
+
+# Get model path as argument
+model_path=$1
+
+if [ -z "$MODEL_PATH" ]; then
+    echo "Error: Model path not provided"
+    echo "Usage: ./eval_branch.sh <model_path>"
+    exit 1
+fi
+
+
 # Function to run the command
 run_command() {
     local gpu=$1
@@ -26,7 +38,7 @@ run_command() {
     CUDA_VISIBLE_DEVICES=$gpu python -m llava.eval.forwards.infer_adascheduler_mme \
             --latency-idx $branch \
             --mask-latency ./latency_variations_${NUM_BRANCHES}.npy \
-            --save-path data/MME/ada_losses/fullset/latency_${NUM_BRANCHES} \
+            --save-path data/MME/ada_losses/latencys/fullset/latency_${NUM_BRANCHES} \
             --model-path $model_path \
             2> >(tee -a "./scripts/adaeval/forwards/eval_latency_stderr.log" >&2) | tee -a "./scripts/adaeval/forwards/eval_latency_stdout.log"
 }

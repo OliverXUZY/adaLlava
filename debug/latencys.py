@@ -4,7 +4,7 @@ import numpy as np
 np.random.seed(42)
 
 # Set the number of latency values
-K = 28
+K = 8
 
 # Generate random latency values between 0 and 1 (excluding 0 and 1)
 latency_variations = np.random.uniform(low=0.0, high=1.0, size=K)
