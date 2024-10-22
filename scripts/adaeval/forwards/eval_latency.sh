@@ -24,9 +24,10 @@ run_command() {
     echo "Running branch $branch on GPU $gpu"
     CUDA_VISIBLE_DEVICES=$gpu python -m llava.eval.forwards.infer_adascheduler_mme \
             --latency-idx $branch \
-            --mask-array ./latency_variations_${NUM_BRANCHES}.npy
+            --mask-latency ./latency_variations_${NUM_BRANCHES}.npy \
             --save-path data/MME/ada_losses/fullset/latency_${NUM_BRANCHES} \
-            --model-path $model_path
+            --model-path $model_path \
+            2> >(tee -a "./scripts/adaeval/forwards/eval_latency_stderr.log" >&2) | tee -a "./scripts/adaeval/forwards/eval_latency_stdout.log"
 }
 
 # Loop through all branch indices

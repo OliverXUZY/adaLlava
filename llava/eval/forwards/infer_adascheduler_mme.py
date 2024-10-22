@@ -220,6 +220,8 @@ def main(args):
     
     model.train()
 
+    print(f"model load from {model_name_or_path}")
+
     # Get the lm_head and input embeddings
     # lm_head_weight = model.lm_head.weight
     # input_embeddings_weight = model.model.embed_tokens.weight
@@ -361,6 +363,7 @@ def main(args):
     else:
         all_latencys = np.load(args.mask_latency)
         latency = torch.tensor(all_latencys[args.latency_idx]).half().to(device).view(batch_size)
+    print(f"all_latencys load from {args.mask_latency}")
     
     for idx, batch in tqdm(enumerate(eval_loader), total=len(eval_loader), desc="Evaluating"):
         batch = {k: (v.to(device).half() if v.dtype in [torch.float32, torch.float64] else v.to(device))
@@ -452,7 +455,6 @@ def parge_args():
     parser.add_argument("--answers-file", type=str, default="answers/answer.jsonl")
     parser.add_argument("--conv-mode", type=str, default="qwen_1_5")
 
-    parser.add_argument("--mask-array", type=str, default="./mask_variations_5.npy")
     parser.add_argument("--save-path", type=str, default="data/MME/ada_losses/fullset/latency_56",)
     parser.add_argument("--latency", type=float, default=None)
 
