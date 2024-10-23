@@ -529,6 +529,7 @@ class LLaVADPOTrainer(DPOTrainer):
         else:
             super(LLaVADPOTrainer, self)._save(output_dir, state_dict)
 
+import time
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 from transformers.trainer_pt_utils import (
