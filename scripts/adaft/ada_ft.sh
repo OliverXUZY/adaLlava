@@ -21,18 +21,21 @@ echo "BASE_RUN_NAME: ${BASE_RUN_NAME}"
 
 ############### Finetune ################
 
-RUN_NUM="3"
+RUN_NUM="0"
 # RUN_NUM="0_debug"
 # Stage 2
 PROMPT_VERSION="qwen_1_5"
-RUN_NAME="${BASE_RUN_NAME}_8cuda_1.0p_${RUN_NUM}" 
+
+TUNABLE_PARTS="ada_sche"
+
+RUN_NAME="${BASE_RUN_NAME}_${TUNABLE_PARTS}_4c_1.0p_${RUN_NUM}" 
 PREV_STAGE_CHECKPOINT="lmms-lab/llava-onevision-qwen2-0.5b-si" 
 echo "PREV_STAGE_CHECKPOINT: ${PREV_STAGE_CHECKPOINT}"
 echo "MID_RUN_NAME: ${RUN_NAME}"
 
 # export NUM_GPUS=4
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-# export CUDA_VISIBLE_DEVICES=0,1,2,3
+# export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export CUDA_VISIBLE_DEVICES=4,5,6,7
 # export CUDA_VISIBLE_DEVICES=0
 
 
@@ -56,7 +59,7 @@ deepspeed \
     --data_path scripts/adaft/ada_MME.yaml \
     --eval_data_path /home/ubuntu/projects/vqaData/data/MME/json_qa/subset_qa_MME.json \
     --image_folder /home/ubuntu/projects/vqaData/data/MME/images \
-    --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \
+    --mm_tunable_parts="lm_ada_scheduler" \
     --mm_vision_tower_lr=2e-6 \
     --vision_tower ${VISION_MODEL_VERSION} \
     --mm_projector_type mlp2x_gelu \
@@ -77,7 +80,7 @@ deepspeed \
     --evaluation_strategy "steps" \
     --eval_steps 1 \
     --save_strategy "steps" \
-    --save_steps 1 \
+    --save_steps 10 \
     --save_total_limit -1 \
     --learning_rate 1e-5 \
     --weight_decay 0. \
@@ -102,3 +105,4 @@ exit 0;
 
     # --data_path scripts/adaft/ada_si.yaml \
     # --image_folder /home/ubuntu/projects/vqaData/data/llava_onevision \
+# --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \

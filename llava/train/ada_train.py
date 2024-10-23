@@ -57,6 +57,34 @@ IS_TOKENIZER_GREATER_THAN_0_14 = version.parse(tokenizers.__version__) >= versio
 from pdb import set_trace as pds
 from pprint import pprint
 
+def save_grad_status(model, output_dir = "save"):
+    """
+    Save parameter names based on their requires_grad status to separate files.
+    
+    Args:
+    model: The PyTorch model
+    output_dir: Directory to save the output files
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    grad_true_file = os.path.join(output_dir, "grad_true_params.txt")
+    grad_false_file = os.path.join(output_dir, "grad_false_params.txt")
+    all_params_file = os.path.join(output_dir, "all_params.txt")
+    
+    with open(grad_true_file, 'w') as f_true, open(grad_false_file, 'w') as f_false, open(all_params_file, 'w') as f_all:
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                f_true.write(f"{name}\n")
+            else:
+                f_false.write(f"{name}\n")
+            
+            f_all.write(f"{name}\n")
+            
+    
+    print(f"Parameters with requires_grad=True saved to: {grad_true_file}")
+    print(f"Parameters with requires_grad=False saved to: {grad_false_file}")
+    print(f"Parameters saved to: {all_params_file}")
+
 @dataclass
 class ModelArguments:
     model_name_or_path: Optional[str] = field(default="facebook/opt-125m")
@@ -1692,9 +1720,6 @@ def train(attn_implementation=None):
             model.get_model().vision_resampler.requires_grad_(False)
             # Parse the mm_tunable_parts to decide which parts to unfreeze
             tunable_parts = model_args.mm_tunable_parts.split(",")
-            # for n,p in model.get_model().named_parameters():
-            #     print(n,p.requires_grad)
-            # pds()
             if "mm_mlp_adapter" in tunable_parts:
                 for p in model.get_model().mm_projector.parameters():
                     p.requires_grad = True
@@ -1705,9 +1730,17 @@ def train(attn_implementation=None):
                 for name, param in model.named_parameters():
                     if "vision_tower" in name:
                         param.requires_grad_(True)
+            if "lm_ada_scheduler" in tunable_parts:
+                for p in model.get_model().ada_scheduler.parameters():
+                    p.requires_grad = True
             if "mm_language_model" in tunable_parts:
                 for name, param in model.named_parameters():
-                    if "vision_tower" not in name and "mm_projector" not in name and "vision_resampler" not in name:
+                    if (
+                        "vision_tower" not in name
+                        and "mm_projector" not in name 
+                        and "vision_resampler" not in name
+                        and "ada_scheduler" not in name
+                    ):
                         param.requires_grad_(True)
             # for n,p in model.get_model().named_parameters():
             #     print(n,p.requires_grad)

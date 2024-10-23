@@ -36,7 +36,7 @@ deepspeed --include localhost:0 llava/train/ada_train_mem.py \
     --data_path scripts/adaft/ada_MME.yaml \
     --eval_data_path /home/ubuntu/projects/vqaData/data/MME/json_qa/subset_qa_MME.json \
     --image_folder /home/ubuntu/projects/vqaData/data/MME/images \
-    --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \
+    --mm_tunable_parts="lm_ada_scheduler" \
     --mm_vision_tower_lr=2e-6 \
     --vision_tower ${VISION_MODEL_VERSION} \
     --mm_projector_type mlp2x_gelu \
