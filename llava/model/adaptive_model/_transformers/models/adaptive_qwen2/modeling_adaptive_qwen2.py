@@ -798,7 +798,8 @@ class AdaptiveQwen2DecoderLayer(nn.Module):
 
 
         # A note on drop_mask: here we only drop attention layer while keeping the mlp.
-        if self.training:
+        if self.training or True: ## zhuoyan hack: right now just use naive inference, 
+            ## in deepspeed: problem arises if not all model params are used during inference. 
             drop_mask = drop_mask.unsqueeze(-1).unsqueeze(-1) # broadcast drop_mask [bs] --> [bs, seq_len, D]
             residual = hidden_states
 
@@ -1322,7 +1323,7 @@ def macs_loss(
 def compose_loss(
         macsloss, # scalar
         original_loss, # scalar
-        p = 0.3,
+        p = 1.0,
         eps = 1e-8,
     ):
     # ret_loss = p*loss1/(loss1.detach() + eps) + (1-p)*loss2/(loss2.detach() + eps)
