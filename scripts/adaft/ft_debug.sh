@@ -20,7 +20,7 @@ echo "BASE_RUN_NAME: ${BASE_RUN_NAME}"
 ############### Finetune ################
 # Stage 2
 PROMPT_VERSION="qwen_1_5"
-RUN_NAME="llava-onevision-${VISION_MODEL_VERSION_CLEAN}-${LLM_VERSION_CLEAN}-si_stage_am9"
+RUN_NAME="debug_1gpu"
 PREV_STAGE_CHECKPOINT="lmms-lab/llava-onevision-qwen2-0.5b-si" 
 echo "PREV_STAGE_CHECKPOINT: ${PREV_STAGE_CHECKPOINT}"
 echo "MID_RUN_NAME: ${RUN_NAME}"
@@ -29,12 +29,13 @@ export LD_LIBRARY_PATH="/opt/conda/envs/adallava/lib:/opt/amazon/efa/lib:/opt/am
 
 
 # Run on a single GPU
-deepspeed llava/train/train_mem.py \
+deepspeed --include localhost:0 llava/train/ada_train_mem.py \
     --deepspeed scripts/zero3.json \
     --model_name_or_path $PREV_STAGE_CHECKPOINT \
     --version $PROMPT_VERSION \
-    --data_path scripts/adaft/si.yaml \
-    --image_folder /home/ubuntu/projects/vqaData/data/llava_onevision \
+    --data_path scripts/adaft/ada_MME.yaml \
+    --eval_data_path /home/ubuntu/projects/vqaData/data/MME/json_qa/subset_qa_MME.json \
+    --image_folder /home/ubuntu/projects/vqaData/data/MME/images \
     --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \
     --mm_vision_tower_lr=2e-6 \
     --vision_tower ${VISION_MODEL_VERSION} \
@@ -53,7 +54,8 @@ deepspeed llava/train/train_mem.py \
     --per_device_train_batch_size 1 \
     --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 1 \
-    --evaluation_strategy "no" \
+    --evaluation_strategy "steps" \
+    --eval_steps 1 \
     --save_strategy "steps" \
     --save_steps 1000 \
     --save_total_limit 1 \
@@ -73,6 +75,7 @@ deepspeed llava/train/train_mem.py \
     --dataloader_drop_last True \
     --frames_upbound 32 \
     --log_level info \
+    --ada_scheduler True \
 
 
         # --deepspeed scripts/zero3.json \

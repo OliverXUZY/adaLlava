@@ -21,11 +21,11 @@ echo "BASE_RUN_NAME: ${BASE_RUN_NAME}"
 
 ############### Finetune ################
 
-RUN_NUM="1"
+RUN_NUM="3"
 # RUN_NUM="0_debug"
 # Stage 2
 PROMPT_VERSION="qwen_1_5"
-RUN_NAME="${BASE_RUN_NAME}_8cuda_0.3p_${RUN_NUM}" 
+RUN_NAME="${BASE_RUN_NAME}_8cuda_1.0p_${RUN_NUM}" 
 PREV_STAGE_CHECKPOINT="lmms-lab/llava-onevision-qwen2-0.5b-si" 
 echo "PREV_STAGE_CHECKPOINT: ${PREV_STAGE_CHECKPOINT}"
 echo "MID_RUN_NAME: ${RUN_NAME}"
@@ -54,6 +54,7 @@ deepspeed \
     --model_name_or_path $PREV_STAGE_CHECKPOINT \
     --version $PROMPT_VERSION \
     --data_path scripts/adaft/ada_MME.yaml \
+    --eval_data_path /home/ubuntu/projects/vqaData/data/MME/json_qa/subset_qa_MME.json \
     --image_folder /home/ubuntu/projects/vqaData/data/MME/images \
     --mm_tunable_parts="mm_vision_tower,mm_mlp_adapter,mm_language_model" \
     --mm_vision_tower_lr=2e-6 \
@@ -71,11 +72,12 @@ deepspeed \
     --output_dir ./checkpoints/adaft/$RUN_NAME \
     --num_train_epochs 1 \
     --per_device_train_batch_size 1 \
-    --per_device_eval_batch_size 4 \
+    --per_device_eval_batch_size 1 \
     --gradient_accumulation_steps 2 \
-    --evaluation_strategy "no" \
+    --evaluation_strategy "steps" \
+    --eval_steps 1 \
     --save_strategy "steps" \
-    --save_steps 10 \
+    --save_steps 1 \
     --save_total_limit -1 \
     --learning_rate 1e-5 \
     --weight_decay 0. \

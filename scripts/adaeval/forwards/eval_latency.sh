@@ -19,11 +19,12 @@ NUM_GPUS=8
 # model_path="checkpoints/adaft/llava-onevision-llavanext-si_alldata_0_4cuda_0.3p/checkpoint-10030"
 # model_path="checkpoints/adaft/llava-onevision-llavanext-si_MME_0_8cuda_0.3p"
 # model_path="checkpoints/adaft/llavanext-si_MME_8cuda_0.3p_1/checkpoint-10"
+model_path="checkpoints/adaft/llavanext-si_MME_8cuda_0.3p_2/checkpoint-2"
 
 # Get model path as argument
-model_path=$1
+# model_path=$1
 
-if [ -z "$MODEL_PATH" ]; then
+if [ -z "$model_path" ]; then
     echo "Error: Model path not provided"
     echo "Usage: ./eval_branch.sh <model_path>"
     exit 1
