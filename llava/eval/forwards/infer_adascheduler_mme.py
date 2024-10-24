@@ -219,6 +219,9 @@ def main(args):
                 )  # Add any other thing you want to pass in llava_model_args
     
     model.train()
+    #### important: tie lm_head weights otherwise it will be random init !!!!
+    model.lm_head.weight = model.model.embed_tokens.weight
+
 
     print(f"model load from {model_name_or_path}")
 
@@ -240,9 +243,7 @@ def main(args):
     # p model.model.ada_scheduler.combined_fc.up_proj.weight
     # p model.lm_head.weight
 
-    #### important: tie lm_head weights otherwise it will be random init !!!!
-    model.lm_head.weight = model.model.embed_tokens.weight
-
+    
 
 
     

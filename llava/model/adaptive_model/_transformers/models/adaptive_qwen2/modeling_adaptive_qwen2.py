@@ -1056,7 +1056,7 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
         gumbels2 = -torch.empty_like(logits).exponential_().log()  # Sample from Gumbel(0, 1)
         
         # Add Gumbel noise to logits
-        noisy_logits = (logits + gumbels1 - gumbels2) / tau  # Apply temperature
+        noisy_logits = (logits + (gumbels1 - gumbels2)/100) / tau  # Apply temperature
         # Apply sigmoid to get probabilities in (0, 1)
         y_soft = torch.sigmoid(noisy_logits)
         
@@ -1233,8 +1233,9 @@ class AdaptiveQwen2Model(Qwen2PreTrainedModel):
                         ada_sche_hidden = hidden_states.clone()  # [bs, seq_len, D]
                         logits = ada_scheduler_forward(ada_sche_hidden, latency)
                         scheduled_drop_mask = self._gumbel_sigmoid(logits, hard = True)
+                        # print(f"logits: \n{logits}")
+                        # print(f"\nscheduled_drop_mask: \n{scheduled_drop_mask}")
                         scheduled_drop_mask = scheduled_drop_mask.permute(1,0).half()
-                        # pds()
 
                 else:
                     _drop_mask = scheduled_drop_mask[mask_idx]
